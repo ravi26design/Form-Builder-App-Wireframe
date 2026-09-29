@@ -360,6 +360,16 @@ h1.title{font-size:23px;font-weight:800;color:var(--heading);letter-spacing:-.3p
 .fillfield.err .reqmsg{display:flex}
 .reqmsg svg{width:13px;height:13px}
 
+/* --- One-time code boxes --- */
+.otpwrap{position:relative;cursor:text}
+.otpbox{width:46px;height:56px;border:1px solid rgba(31,31,31,.18);border-radius:12px;background:var(--input);
+  display:grid;place-items:center;font-family:'DM Sans',sans-serif;font-size:22px;font-weight:700;color:var(--heading);
+  transition:border-color .15s,box-shadow .15s,background .15s}
+.otpbox.on{border-color:#111;border-width:1.5px;background:#fff;box-shadow:0 0 0 3px rgba(0,0,0,.07)}
+.otphidden{position:absolute;inset:0;width:100%;height:100%;opacity:0;border:none;background:transparent;
+  color:transparent;caret-color:transparent;font-size:16px;outline:none}
+@media (max-width:380px){.otpbox{width:40px;height:50px;font-size:19px}}
+
 /* --- Emoji kept monochrome --- */
 .emj{filter:grayscale(1)}
 
@@ -754,7 +764,7 @@ SCREENS['login']=()=>{
         <div class="input" ${loginErr?'style="border-color:#111;border-width:1.5px"':''}><span class="lead"><i data-lucide="mail"></i></span>
           <input placeholder="Type your email" value="${esc(loginEmail)}" oninput="loginEmail=this.value;loginErr=''"></div></div>
       <div class="field"><label>Password</label><div class="input"><span class="lead"><i data-lucide="lock"></i></span><input type="password" placeholder="Type your password" value="demopass"><span class="trail" onclick="togglePw(this)"><i data-lucide="eye-off"></i></span></div></div>
-      <div class="lnk" style="text-align:right;margin-bottom:16px">Forgot Password?</div>
+      <div class="lnk" style="text-align:right;margin-bottom:16px;cursor:pointer" onclick="startReset()">Forgot Password?</div>
       <button class="btn btn-primary btn-block" onclick="doLogin()">Log In</button>
       <div class="muted small" style="text-align:center;margin-top:16px;line-height:1.6">Org Admins manage forms and review submissions on the <b style="color:var(--heading)">web portal</b>.</div>
     </div>
@@ -770,6 +780,164 @@ function doLogin(){
   ROLE='field';loginErr='';
   nav('fu-home');
 }
+/* ================== FORGOT PASSWORD ==================
+   Email → one-time code → new password → back to sign in. Each step stands on
+   its own screen so a half-finished reset can always be abandoned safely. */
+let reset={email:'',code:['','','','','',''],nw:'',cf:'',err:'',sentAt:0};
+function startReset(){
+  reset={email:loginEmail||'',code:['','','','','',''],nw:'',cf:'',err:'',sentAt:0};
+  nav('fp-email');
+}
+SCREENS['fp-email']=()=>{
+  statusLight(false);
+  return `
+  <div style="background:#fff;padding:14px 16px;border-bottom:1px solid var(--border)">
+    <span class="lnk flex ac g6" onclick="nav('login')" style="margin-bottom:8px"><i data-lucide="arrow-left"></i> Sign in</span>
+    <div class="tt" style="font-size:18px">Forgot your password?</div>
+    <div class="muted mt4">We will send a one-time code to your registered email</div></div>
+  <div class="pad pb">
+    <div class="card p" style="text-align:center;padding:22px 16px;margin-bottom:14px">
+      <div style="width:56px;height:56px;border-radius:16px;background:var(--blue-bg);color:var(--blue);display:grid;place-items:center;margin:0 auto 10px"><i data-lucide="mail-question" style="width:26px;height:26px"></i></div>
+      <div class="sec-title" style="font-size:16px">Let's get you back in</div>
+      <div class="muted small mt4">Enter the email you use for India Observatory Forms.</div>
+    </div>
+    <div class="card p">
+      <div class="field" style="margin-bottom:0"><label>Email Address <span class="req">*</span></label>
+        <div class="input" ${reset.err?'style="border-color:#111;border-width:1.5px"':''}><span class="lead"><i data-lucide="mail"></i></span>
+          <input type="email" placeholder="you@organisation.org" value="${esc(reset.email)}" oninput="reset.email=this.value;reset.err=''"></div>
+        ${reset.err?`<div class="reqmsg" style="display:flex"><i data-lucide="alert-circle"></i> ${reset.err}</div>`:''}</div>
+    </div>
+    <button class="btn btn-primary btn-block mt16" onclick="sendCode()"><i data-lucide="send"></i> Send code</button>
+    <div class="muted small mt14" style="text-align:center;line-height:1.6">Remembered it? <span class="lnk" onclick="nav('login')">Back to sign in</span></div>
+  </div>`;
+};
+function sendCode(){
+  const e=(reset.email||'').trim();
+  if(!e||!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)){reset.err='Enter a valid email address';nav('fp-email');return;}
+  reset.err='';reset.code=['','','','','',''];reset.sentAt=Date.now();
+  nav('fp-otp');
+  toast('Code sent to '+e,'mail');
+}
+
+/* six single-character boxes, so the code is readable as it is typed */
+SCREENS['fp-otp']=()=>{
+  statusLight(false);
+  setTimeout(startOtpTimer,50);
+  setTimeout(focusOtp,120);
+  return `
+  <div style="background:#fff;padding:14px 16px;border-bottom:1px solid var(--border)">
+    <span class="lnk flex ac g6" onclick="nav('fp-email')" style="margin-bottom:8px"><i data-lucide="arrow-left"></i> Back</span>
+    <div class="tt" style="font-size:18px">Enter the code</div>
+    <div class="muted mt4">Sent to ${esc(reset.email)}</div></div>
+  <div class="pad pb">
+    <div class="card p" style="text-align:center;padding:22px 16px;margin-bottom:14px">
+      <div style="width:56px;height:56px;border-radius:16px;background:var(--blue-bg);color:var(--blue);display:grid;place-items:center;margin:0 auto 10px"><i data-lucide="key-round" style="width:26px;height:26px"></i></div>
+      <div class="sec-title" style="font-size:16px">Six-digit code</div>
+      <div class="muted small mt4">It expires in 10 minutes. Check your spam folder if it has not arrived.</div>
+    </div>
+    <div class="otpwrap" onclick="focusOtp()">
+      <div class="flex g8" id="otpboxes" style="justify-content:center">${otpBoxes()}</div>
+      <input id="otpinput" class="otphidden" inputmode="numeric" pattern="[0-9]*" autocomplete="one-time-code"
+        maxlength="6" value="${reset.code.join('')}" oninput="otpInput(this)" onkeydown="if(event.key==='Enter')verifyCode()">
+    </div>
+    ${reset.err?`<div class="reqmsg" style="display:flex;justify-content:center;margin-top:12px"><i data-lucide="alert-circle"></i> ${reset.err}</div>`:''}
+    <div class="muted small mt16" style="text-align:center">Didn't get it? <span id="otpResend"></span></div>
+    <button class="btn btn-primary btn-block mt16" onclick="verifyCode()"><i data-lucide="check"></i> Verify code</button>
+    <div class="hint" style="text-align:center;margin-top:12px">Prototype: any six digits are accepted.</div>
+  </div>`;
+};
+function otpBoxes(){
+  const filled=reset.code.filter(Boolean).length;
+  return [0,1,2,3,4,5].map(i=>`<div class="otpbox${i===Math.min(filled,5)?' on':''}">${reset.code[i]||''}</div>`).join('');
+}
+function otpInput(el){
+  const v=(el.value||'').replace(/\D/g,'').slice(0,6);
+  el.value=v;
+  reset.code=[0,1,2,3,4,5].map(i=>v[i]||'');
+  reset.err='';
+  const boxes=document.getElementById('otpboxes');
+  if(boxes)boxes.innerHTML=otpBoxes();      /* repaint only the boxes, so focus stays put */
+  if(v.length===6)setTimeout(verifyCode,180);
+}
+function focusOtp(){const el=document.getElementById('otpinput');if(el)el.focus();}
+/* the resend link only unlocks once the countdown runs out */
+function startOtpTimer(){
+  clearInterval(window._otp);
+  window._otp=setInterval(function(){
+    const el=document.getElementById('otpResend');
+    if(!el){clearInterval(window._otp);return;}
+    const left=30-Math.floor((Date.now()-reset.sentAt)/1000);
+    el.innerHTML=left>0?`<span style="color:var(--metric-muted)">Resend in ${left}s</span>`
+      :`<span class="lnk" onclick="resendCode()">Send a new code</span>`;
+  },500);
+}
+function resendCode(){reset.sentAt=Date.now();reset.code=['','','','','',''];nav('fp-otp');toast('New code sent','mail');}
+function verifyCode(){
+  const code=reset.code.join('');
+  if(code.length<6){reset.err='Enter all six digits';nav('fp-otp');return;}
+  reset.err='';clearInterval(window._otp);
+  nav('fp-new');
+}
+
+/* ---- new password ---- */
+SCREENS['fp-new']=()=>{
+  statusLight(false);
+  reset.nw='';reset.cf='';
+  return `
+  <div style="background:#fff;padding:14px 16px;border-bottom:1px solid var(--border)">
+    <span class="lnk flex ac g6" onclick="nav('fp-otp')" style="margin-bottom:8px"><i data-lucide="arrow-left"></i> Back</span>
+    <div class="tt" style="font-size:18px">Create a new password</div>
+    <div class="muted mt4">For ${esc(reset.email)}</div></div>
+  <div class="pad pb">
+    <div class="card p">
+      <div class="field"><label>New Password <span class="req">*</span></label>
+        <div class="input"><span class="lead"><i data-lucide="lock-keyhole"></i></span>
+          <input type="password" placeholder="At least 8 characters" oninput="rpSet('nw',this.value)"><span class="trail" onclick="togglePw(this)"><i data-lucide="eye-off"></i></span></div>
+        <div class="flex ac g8 mt8"><div class="progtrack grow"><div class="progfill" id="rpbar" style="width:0%"></div></div>
+          <span class="small" id="rplbl" style="font-weight:700;min-width:56px;text-align:right;color:var(--muted)"></span></div></div>
+      <div class="field" style="margin-bottom:0"><label>Confirm Password <span class="req">*</span></label>
+        <div class="input"><span class="lead"><i data-lucide="lock-keyhole"></i></span>
+          <input type="password" placeholder="Re-enter new password" oninput="rpSet('cf',this.value)"><span class="trail" onclick="togglePw(this)"><i data-lucide="eye-off"></i></span></div>
+        <div class="small mt6 flex ac g6" id="rpMatch" style="display:none"><i data-lucide="alert-circle" style="width:14px;height:14px"></i> Passwords do not match</div></div>
+    </div>
+    <div class="card p mt14" style="background:#FAFAFA">
+      <div class="small" style="font-weight:700;color:var(--heading);margin-bottom:6px">Password must contain</div>
+      ${CPW_RULES.map((r,i)=>`<div class="flex ac g8" id="rpreq${i}" style="padding:5px 0;color:var(--muted);font-size:13px"><i data-lucide="circle" style="width:15px;height:15px"></i> <span>${r}</span></div>`).join('')}
+    </div>
+    <button class="btn btn-primary btn-block mt16" id="rpBtn" disabled onclick="resetDone()"><i data-lucide="shield-check"></i> Reset password</button>
+  </div>`;
+};
+function rpSet(k,v){
+  reset[k]=v;
+  const rules=cpwRules(reset.nw||''),n=rules.filter(Boolean).length;
+  const bar=$('#rpbar'),lbl=$('#rplbl');
+  if(bar){bar.style.width=(reset.nw?[8,25,50,75,100][n]:0)+'%';
+    bar.style.background=n<=1?'#B5B5B5':n===2?'#8A8A8A':n===3?'#5A5A5A':'#111111';}
+  if(lbl){lbl.textContent=reset.nw?['','Weak','Fair','Good','Strong'][n]:'';}
+  rules.forEach(function(ok,i){const el=$('#rpreq'+i);if(el){el.style.color=ok?'var(--green)':'var(--muted)';
+    el.innerHTML=`<i data-lucide="${ok?'check-circle-2':'circle'}" style="width:15px;height:15px"></i> <span>${CPW_RULES[i]}</span>`;}});
+  const mismatch=reset.cf&&reset.nw!==reset.cf;
+  const m=$('#rpMatch');if(m)m.style.display=mismatch?'flex':'none';
+  const btn=$('#rpBtn');if(btn)btn.disabled=!(n===4&&reset.cf&&!mismatch);
+  icons();
+}
+function resetDone(){nav('fp-done');}
+SCREENS['fp-done']=()=>{
+  statusLight(false);
+  return `<div style="height:100%;overflow-y:auto;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 20px;background:#fff">
+    <div style="width:84px;height:84px;border-radius:50%;background:var(--green);display:grid;place-items:center;color:#fff;margin-bottom:16px"><i data-lucide="shield-check" style="width:40px;height:40px"></i></div>
+    <div style="font-size:24px;font-weight:800;color:var(--heading)">Password changed</div>
+    <div class="muted" style="text-align:center;margin-top:8px">You can now sign in with your new password.</div>
+    <div class="card p mt16" style="width:100%">
+      <div class="flex between ac"><span class="muted small">Account</span><span class="tt" style="font-size:14px">${esc(reset.email)}</span></div>
+      <div class="flex between ac" style="padding-top:11px;margin-top:11px;border-top:1px solid var(--border2)"><span class="muted small">Changed</span><span class="tt" style="font-size:14px">${nowStamp()}</span></div>
+    </div>
+    <div class="banner pend mt16" style="width:100%"><div class="t flex ac g8"><i data-lucide="info"></i> Signed out everywhere</div>
+      <div class="muted mt6">Other devices using the old password will need to sign in again.</div></div>
+    <button class="btn btn-primary btn-block mt16" onclick="loginEmail=reset.email;nav('login')"><i data-lucide="log-in"></i> Back to sign in</button>
+  </div>`;
+};
+
 function togglePw(el){const i=el.closest('.input').querySelector('input');const show=i.type==='password';i.type=show?'text':'password';el.innerHTML=`<i data-lucide="${show?'eye':'eye-off'}"></i>`;icons();}
 
 /* ================= DASHBOARD PIECES (shared by both roles) =================
