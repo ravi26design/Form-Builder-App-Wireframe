@@ -360,6 +360,32 @@ h1.title{font-size:23px;font-weight:800;color:var(--heading);letter-spacing:-.3p
 .fillfield.err .reqmsg{display:flex}
 .reqmsg svg{width:13px;height:13px}
 
+/* ============ Page header ============
+   One row: back arrow, title, and at most one action. No “Back” label and no
+   subtitle — the context belongs in the body, where there is room for it.
+   Filters sit below the white bar so the header stays a fixed, calm anchor. */
+.phead-wrap{background:#fff;border-bottom:1px solid var(--border);padding:12px 14px 14px;flex:0 0 auto}
+.phead{display:flex;align-items:center;gap:8px;min-height:40px}
+.pback{width:36px;height:36px;margin-left:-6px;border-radius:10px;display:grid;place-items:center;
+  color:var(--heading);cursor:pointer;flex:0 0 auto;transition:background .15s}
+.pback:active{background:var(--input)}
+.pback svg{width:22px;height:22px}
+.ptitle{flex:1;min-width:0;font-size:19px;font-weight:800;color:var(--heading);letter-spacing:-.3px;
+  line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.phead .ipill,.phead .btn,.phead .badge{flex:0 0 auto}
+.phead .lnk{flex:0 0 auto;white-space:nowrap}
+.chiprow{padding:14px 16px 0}
+.chiprow .chips{padding-bottom:2px}
+
+/* --- Repeatable section entries --- */
+.repitem{border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px;background:#FCFCFC}
+.rephead{display:flex;align-items:center;gap:10px;padding-bottom:12px;margin-bottom:14px;border-bottom:1px solid var(--border2)}
+.repnum{width:24px;height:24px;border-radius:50%;background:#111;color:#fff;font-size:11.5px;font-weight:800;
+  display:grid;place-items:center;flex:0 0 auto}
+.repdel{color:var(--muted);cursor:pointer;display:flex;padding:4px}
+.repdel svg{width:17px;height:17px}
+.repitem .fillfield:last-of-type{margin-bottom:0}
+
 /* --- One-time code boxes --- */
 .otpwrap{position:relative;cursor:text}
 .otpbox{width:46px;height:56px;border:1px solid rgba(31,31,31,.18);border-radius:12px;background:var(--input);
@@ -542,6 +568,16 @@ const FILL_SECTIONS = [
         'Encroachment':[{id:'enc', label:'Encroachment Details', type:'Long Text', ph:'Describe the encroachment'}],
       }},
   ]},
+  /* A repeatable section: the same fields, captured once per person. The form
+     author sets how many copies appear to begin with; the field user adds more
+     when the household is larger than expected. */
+  { title:'Household Members', icon:'users', repeat:{count:3,min:1,max:25,label:'Member'}, fields:[
+    {id:'mname', label:'Full Name', type:'Short Text', req:true, ph:'Enter name'},
+    {id:'mage', label:'Age', type:'Number', req:true, ph:'Years'},
+    {id:'mgender', label:'Gender', type:'Dropdown', req:true, opts:['Female','Male','Other','Prefer not to say']},
+    {id:'mphone', label:'Contact Number', type:'Phone', req:false, ph:'+91 00000 00000'},
+    {id:'mrel', label:'Relationship to Head', type:'Short Text', req:false, ph:'e.g. daughter'},
+  ]},
   { title:'Media & Evidence', icon:'image', fields:[
     {id:'photo', label:'Site Photo', type:'Photo Upload', req:false},
     {id:'doc', label:'Supporting Document', type:'File Upload', req:false},
@@ -667,7 +703,7 @@ function recSummary(id){
 /* ============================ STATE ============================ */
 let ROLE='field';
 let builder={n:'',d:'',prog:'',cat:'water',fields:[]};
-let fill={i:0,answers:{},geo:{},geoErr:{},showErr:false};
+let fill={i:0,answers:{},geo:{},geoErr:{},showErr:false,reps:{}};
 let starred={};FORMS.forEach(f=>starred[f.id]=f.star);
 
 /* ============================ HELPERS ============================ */
@@ -683,13 +719,41 @@ let curScreen='';
 let lastTab='fu-home';   /* where a screen outside the tab bar goes "back" to */
 function nav(id,opts){
   if(TAB_IDS.has(curScreen))lastTab=curScreen;
-  curScreen=id;
+  curScreen=id;curOpts=opts||{};
   const html=SCREENS[id]?SCREENS[id](opts||{}):'<div class="pad">Not found</div>';
   vp().innerHTML=`<div class="scr active" id="scr">${html}</div>`;
   vp().querySelector('#scr').scrollTop=0;
   renderNav();
   icons();
+  rememberScreen(id,opts);
 }
+let curOpts={};
+/* A refresh should land you back where you were. The screen id goes in the
+   address bar so the link is shareable, and its parameters go to storage. */
+const TRANSIENT={'splash':'login','fu-fill':'fu-forms','fu-done':'fu-forms','help-sent':'help-tickets',
+  'fp-otp':'login','fp-new':'login','fp-done':'login'};
+function rememberScreen(id,opts){
+  try{localStorage.setItem('iof-screen',JSON.stringify({id:id,opts:opts||{},role:ROLE,at:Date.now()}));}catch(e){}
+  try{if(id!=='splash')history.replaceState(null,'','#'+id);}catch(e){}
+}
+function restoreScreen(){
+  let st=null;
+  try{st=JSON.parse(localStorage.getItem('iof-screen')||'null');}catch(e){}
+  const hash=(location.hash||'').replace(/^#/,'');
+  let id=hash||(st&&st.id)||'';
+  if(!id||!SCREENS[id])return false;
+  /* a half-finished flow cannot be resumed from storage, so fall back to its parent */
+  if(TRANSIENT[id])id=TRANSIENT[id];
+  if(st&&st.role)ROLE=st.role;
+  const opts=(st&&st.id===id)?st.opts:{};
+  nav(id,opts);
+  return true;
+}
+/* browser back and forward move between screens too */
+window.addEventListener('hashchange',function(){
+  const id=(location.hash||'').replace(/^#/,'');
+  if(id&&SCREENS[id]&&id!==curScreen)nav(id,(TRANSIENT[id]?{}:curOpts));
+});
 
 /* ============================ BOTTOM NAV ============================ */
 const TABS={
@@ -791,10 +855,9 @@ function startReset(){
 SCREENS['fp-email']=()=>{
   statusLight(false);
   return `
-  <div style="background:#fff;padding:14px 16px;border-bottom:1px solid var(--border)">
-    <span class="lnk flex ac g6" onclick="nav('login')" style="margin-bottom:8px"><i data-lucide="arrow-left"></i> Sign in</span>
-    <div class="tt" style="font-size:18px">Forgot your password?</div>
-    <div class="muted mt4">We will send a one-time code to your registered email</div></div>
+  <div class="phead-wrap">
+    <div class="phead"><span class="pback" onclick="nav('login')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">Forgot your password?</h1></div>
+  </div>
   <div class="pad pb">
     <div class="card p" style="text-align:center;padding:22px 16px;margin-bottom:14px">
       <div style="width:56px;height:56px;border-radius:16px;background:var(--blue-bg);color:var(--blue);display:grid;place-items:center;margin:0 auto 10px"><i data-lucide="mail-question" style="width:26px;height:26px"></i></div>
@@ -825,14 +888,14 @@ SCREENS['fp-otp']=()=>{
   setTimeout(startOtpTimer,50);
   setTimeout(focusOtp,120);
   return `
-  <div style="background:#fff;padding:14px 16px;border-bottom:1px solid var(--border)">
-    <span class="lnk flex ac g6" onclick="nav('fp-email')" style="margin-bottom:8px"><i data-lucide="arrow-left"></i> Back</span>
-    <div class="tt" style="font-size:18px">Enter the code</div>
-    <div class="muted mt4">Sent to ${esc(reset.email)}</div></div>
+  <div class="phead-wrap">
+    <div class="phead"><span class="pback" onclick="nav('fp-email')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">Enter the code</h1></div>
+  </div>
   <div class="pad pb">
     <div class="card p" style="text-align:center;padding:22px 16px;margin-bottom:14px">
       <div style="width:56px;height:56px;border-radius:16px;background:var(--blue-bg);color:var(--blue);display:grid;place-items:center;margin:0 auto 10px"><i data-lucide="key-round" style="width:26px;height:26px"></i></div>
       <div class="sec-title" style="font-size:16px">Six-digit code</div>
+      <div class="muted small mt4">Sent to <b style="color:var(--heading)">${esc(reset.email)}</b></div>
       <div class="muted small mt4">It expires in 10 minutes. Check your spam folder if it has not arrived.</div>
     </div>
     <div class="otpwrap" onclick="focusOtp()">
@@ -884,12 +947,12 @@ SCREENS['fp-new']=()=>{
   statusLight(false);
   reset.nw='';reset.cf='';
   return `
-  <div style="background:#fff;padding:14px 16px;border-bottom:1px solid var(--border)">
-    <span class="lnk flex ac g6" onclick="nav('fp-otp')" style="margin-bottom:8px"><i data-lucide="arrow-left"></i> Back</span>
-    <div class="tt" style="font-size:18px">Create a new password</div>
-    <div class="muted mt4">For ${esc(reset.email)}</div></div>
+  <div class="phead-wrap">
+    <div class="phead"><span class="pback" onclick="nav('fp-otp')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">Create a new password</h1></div>
+  </div>
   <div class="pad pb">
     <div class="card p">
+      <div class="muted small" style="margin-bottom:12px">Setting a new password for <b style="color:var(--heading)">${esc(reset.email)}</b></div>
       <div class="field"><label>New Password <span class="req">*</span></label>
         <div class="input"><span class="lead"><i data-lucide="lock-keyhole"></i></span>
           <input type="password" placeholder="At least 8 characters" oninput="rpSet('nw',this.value)"><span class="trail" onclick="togglePw(this)"><i data-lucide="eye-off"></i></span></div>
@@ -1029,14 +1092,10 @@ SCREENS['fu-notif']=()=>{
   const list=notifFilter==='Unread'?mine.filter(n=>n.unread):mine;
   const days=[];list.forEach(n=>{const d=days.find(x=>x.day===n.day);d?d.items.push(n):days.push({day:n.day,items:[n]});});
   return `
-  <div style="background:#fff;padding:14px 16px;border-bottom:1px solid var(--border)">
-    <div class="flex between ac"><span class="lnk flex ac g6" onclick="nav('${ROLE==='field'?'fu-home':'ad-dash'}')"><i data-lucide="arrow-left"></i> Back</span>
-      <span class="ipill" onclick="nav('notif-settings')"><i data-lucide="settings"></i></span></div>
-    <div class="flex between ac mt8"><div><div class="tt" style="font-size:18px">Notifications</div>
-      <div class="muted mt4">${unread?unread+' unread':'All caught up'}</div></div>
-      ${unread?`<span class="lnk" onclick="markAllRead()">Mark all read</span>`:''}</div>
-    <div class="chips mt12">${['All','Unread'].map(t=>`<div class="chip ${t===notifFilter?'sel':''}" onclick="notifFilter='${t}';nav('fu-notif')">${t}${t==='Unread'&&unread?' · '+unread:''}</div>`).join('')}</div>
+  <div class="phead-wrap">
+    <div class="phead"><span class="pback" onclick="nav('${ROLE==='field'?'fu-home':'ad-dash'}')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">Notifications</h1>${unread?`<span class="lnk" onclick="markAllRead()">Mark all read</span>`:''}<span class="ipill" onclick="nav('notif-settings')"><i data-lucide="settings"></i></span></div>
   </div>
+  <div class="chiprow"><div class="chips mt12">${['All','Unread'].map(t=>`<div class="chip ${t===notifFilter?'sel':''}" onclick="notifFilter='${t}';nav('fu-notif')">${t}${t==='Unread'&&unread?' · '+unread:''}</div>`).join('')}</div></div>
   <div class="pad pb">
     ${list.length?days.map(d=>`<div class="pgroup" style="margin-top:14px">${d.day}</div>${d.items.map(notifCard).join('')}`).join('')
       :emptyState(!notifPrefs.push?'Notifications are off':notifFilter==='Unread'?'Nothing unread':'No notifications',
@@ -1082,8 +1141,9 @@ SCREENS['notif-settings']=()=>{
     <span class="grow"><span style="font-weight:600;color:var(--heading)">${label}</span>${hint?`<div class="hint">${hint}</div>`:''}</span>
     <div class="tgl ${notifPrefs[k]?'on':''}" onclick="togglePref('${k}')"></div></div>`;
   return `
-  <div style="background:#fff;padding:14px 16px;border-bottom:1px solid var(--border)"><span class="lnk flex ac g6" onclick="nav('fu-notif')" style="margin-bottom:8px"><i data-lucide="arrow-left"></i> Notifications</span>
-    <div class="tt" style="font-size:18px">Notification Settings</div><div class="muted mt4">What reaches this device, and when</div></div>
+  <div class="phead-wrap">
+    <div class="phead"><span class="pback" onclick="nav('fu-notif')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">Notification Settings</h1></div>
+  </div>
   <div class="pad pb">
     <div class="card p">${row('push','Push notifications','Turning this off silences everything below.')}</div>
     <div class="pgroup" style="margin-top:18px">What to notify me about</div>
@@ -1180,10 +1240,9 @@ function formsScreen(isField){
   const list=isField?FORMS.filter(formMatches):FORMS.filter(f=>cur==='All'||f.s===cur.toLowerCase());
   list.sort((a,b)=>(starred[b.id]||0)-(starred[a.id]||0));
   return `
-  <div style="background:#fff;padding:14px 16px;border-bottom:1px solid var(--border)">
-    <div class="flex between ac"><h1 class="title">${isField?'My Forms':'Forms'}</h1>
-      ${isField?'':`<button class="btn btn-primary btn-sm" onclick="openBuilder('new')"><i data-lucide="plus"></i> New</button>`}</div>
-    <div class="input mt12" style="background:#fff"><span class="lead"><i data-lucide="search"></i></span><input placeholder="Search forms..." oninput="filterForms(this.value)"></div>
+  <div class="phead-wrap">
+    <div class="phead"><h1 class="ptitle">${isField?'My Forms':'Forms'}</h1><button class="btn btn-primary btn-sm" onclick="openBuilder('new')"><i data-lucide="plus"></i> New</button></div>
+    <div class="mt12"><div class="input mt12" style="background:#fff"><span class="lead"><i data-lucide="search"></i></span><input placeholder="Search forms..." oninput="filterForms(this.value)"></div></div>
   </div>
   <div class="pad" style="padding-bottom:8px">${isField?filterBar('forms'):`<div class="chips">${['All','Active','Draft'].map(t=>`<div class="chip ${t===cur?'sel':''}" onclick="setFormsTab('admin','${t}')">${t}</div>`).join('')}</div>`}</div>
   <div class="pad pb" id="formsList" style="padding-top:4px">${list.map(f=>formCard(f,isField)).join('')||emptyState('No forms found','Nothing matches your filters.')}</div>`;
@@ -1251,9 +1310,8 @@ SCREENS['fu-detail']=({id})=>{
   const drafts=ss.filter(x=>x.s==='draft').length;
   const places=new Set(ss.map(x=>x.rec)).size;
   return `
-  <div style="background:#fff;padding:14px 16px;border-bottom:1px solid var(--border)">
-    <span class="lnk flex ac g6" onclick="nav('fu-forms')" style="margin-bottom:8px"><i data-lucide="arrow-left"></i> Back</span>
-    <div class="tt" style="font-size:18px">${f.n}</div><div class="muted mt4">${c.label}</div>
+  <div class="phead-wrap">
+    <div class="phead"><span class="pback" onclick="nav('fu-forms')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">${f.n}</h1></div>
   </div>
   <div class="pad pb">
     <div class="card p">
@@ -1323,13 +1381,11 @@ let mySubFilter='All';let mySubQ='';
 SCREENS['fu-subs']=()=>{
   statusLight(false);
   return `
-  <div style="background:#fff;padding:14px 16px;border-bottom:1px solid var(--border)">
-    <h1 class="title">My Records</h1>
-    <div class="muted mt4">${MYSUBS.length} submissions you have made</div>
-    <div class="input mt12" style="background:#fff"><span class="lead"><i data-lucide="search"></i></span>
+  <div class="phead-wrap">
+    <div class="phead"><h1 class="ptitle">My Records</h1></div>
+    <div class="mt12"><div class="input mt12" style="background:#fff"><span class="lead"><i data-lucide="search"></i></span>
       <input placeholder="Search ID, form or location..." value="${esc(mySubQ)}" oninput="mySubSearch(this.value)">
-      ${mySubQ?`<span class="trail" onclick="mySubQ='';nav('fu-subs')"><i data-lucide="x"></i></span>`:''}</div>
-    ${filterBar('subs')}
+      ${mySubQ?`<span class="trail" onclick="mySubQ='';nav('fu-subs')"><i data-lucide="x"></i></span>`:''}</div></div>
   </div>
   <div class="pad pb" id="mySubList">${mySubListHtml()}</div>`;
 };
@@ -1379,12 +1435,8 @@ SCREENS['fu-subdetail']=({id})=>{
   const stage=['pending','verified','completed'];
   const at=uploaded?stage.indexOf(r.rs||'pending'):-1;
   return `
-  <div style="background:#fff;padding:14px 16px;border-bottom:1px solid var(--border)">
-    <div class="flex between ac"><span class="lnk flex ac g6" onclick="nav('fu-subs')"><i data-lucide="arrow-left"></i> My Records</span>
-      <span class="ipill" onclick="toast('Shared','share-2')"><i data-lucide="share-2"></i></span></div>
-    <div class="flex between g8 mt8" style="align-items:flex-start">
-      <div class="grow"><div class="tt" style="font-size:19px">${r.rec}</div>
-        <div class="muted mt4">${f.n}</div></div>${recStateBadge(r)}</div>
+  <div class="phead-wrap">
+    <div class="phead"><span class="pback" onclick="nav('fu-subs')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">${r.rec}</h1>${recStateBadge(r)}<span class="ipill" onclick="toast('Shared','share-2')"><i data-lucide="share-2"></i></span></div>
   </div>
   <div class="pad pb">
     <div class="card p">
@@ -1455,7 +1507,8 @@ function openFill(id,subId){
   const form=FORMS.find(x=>x.id===id);
   if(form&&form.s!=='active'){toast('This form is not published yet','lock');return;}
   const existing=subId?MYSUBS.find(x=>x.id===subId):null;
-  fill={i:0,answers:{},formId:id,subId:subId||null,geo:{},geoErr:{},showErr:false};
+  fill={i:0,answers:{},formId:id,subId:subId||null,geo:{},geoErr:{},showErr:false,reps:{}};
+  FILL_SECTIONS.forEach(function(sec,si){if(sec.repeat)fill.reps[si]=sec.repeat.count;});
   const rf=FILL_SECTIONS[0].fields[0];          /* the record-title field */
   rf.label=recLabel(id);rf.ph='Enter '+recOne(id)+' name';
   if(existing)fill.answers[rf.id]=existing.rec;
@@ -1535,7 +1588,76 @@ SCREENS['fu-fill']=()=>{
     </div>
   </div>`;
 };
-function activeFillFields(){var out=[];FILL_SECTIONS.forEach(function(sec){sec.fields.forEach(function(f){out.push(f);if(f.followups){var a=fill.answers[f.id];var keys=Array.isArray(a)?a:[a];keys.forEach(function(k){if(k&&f.followups[k])f.followups[k].forEach(function(ff){out.push(ff);});});}});});return out;}
+/* One entry of a repeatable section is the same fields under suffixed ids, so
+   “Full Name” in entry 2 answers to mname#2 and nothing collides. */
+function instF(f,n){
+  if(!n)return f;
+  const c=Object.assign({},f,{id:f.id+'#'+n});
+  if(f.followups){
+    const fu={};
+    Object.keys(f.followups).forEach(k=>{fu[k]=f.followups[k].map(x=>instF(x,n));});
+    c.followups=fu;
+  }
+  return c;
+}
+function repCount(si){
+  const sec=FILL_SECTIONS[si];
+  if(!sec||!sec.repeat)return 0;
+  if(fill.reps&&fill.reps[si]!=null)return fill.reps[si];
+  return sec.repeat.count;
+}
+function pushWithFollowups(f,out){
+  out.push(f);
+  if(f.followups){
+    const a=fill.answers[f.id];
+    (Array.isArray(a)?a:[a]).forEach(function(k){
+      if(k&&f.followups[k])f.followups[k].forEach(function(ff){pushWithFollowups(ff,out);});
+    });
+  }
+}
+function activeFillFields(){
+  var out=[];
+  FILL_SECTIONS.forEach(function(sec,si){
+    if(sec.repeat){
+      const c=repCount(si);
+      for(var n=1;n<=c;n++)sec.fields.forEach(function(f){pushWithFollowups(instF(f,n),out);});
+    }else{
+      sec.fields.forEach(function(f){pushWithFollowups(f,out);});
+    }
+  });
+  return out;
+}
+/* every id a field owns, including the ones its follow-ups introduce */
+function fieldIds(f){
+  var out=[f.id];
+  if(f.followups)Object.keys(f.followups).forEach(k=>f.followups[k].forEach(x=>{out=out.concat(fieldIds(x));}));
+  return out;
+}
+function addRep(si){
+  const sec=FILL_SECTIONS[si];const c=repCount(si);
+  if(c>=sec.repeat.max){toast('Maximum '+sec.repeat.max+' entries','alert-circle');return;}
+  fill.reps[si]=c+1;
+  renderFillBody();
+  toast(sec.repeat.label+' '+(c+1)+' added','plus');
+  setTimeout(function(){const el=document.getElementById('rep_'+si+'_'+(c+1));if(el)el.scrollIntoView({behavior:'smooth',block:'center'});},60);
+}
+/* removing an entry shifts the ones after it up, so numbering never gaps */
+function removeRep(si,n){
+  const sec=FILL_SECTIONS[si];const c=repCount(si);
+  if(c<=sec.repeat.min){toast('At least one entry is required','alert-circle');return;}
+  for(var k=n;k<c;k++){
+    sec.fields.forEach(function(f){
+      fieldIds(f).forEach(function(id){
+        const from=id+'#'+(k+1),to=id+'#'+k;
+        if(fill.answers[from]!==undefined)fill.answers[to]=fill.answers[from];else delete fill.answers[to];
+      });
+    });
+  }
+  sec.fields.forEach(function(f){fieldIds(f).forEach(function(id){delete fill.answers[id+'#'+c];});});
+  fill.reps[si]=c-1;
+  renderFillBody();
+  toast(sec.repeat.label+' removed','trash-2');
+}
 function isAnswered(f){
   var a=fill.answers[f.id];
   if(Array.isArray(a))return a.length>0;
@@ -1546,11 +1668,35 @@ function missingRequired(){return activeFillFields().filter(f=>f.req&&!isAnswere
 function clearFieldErr(id){const el=document.getElementById('ff_'+id);if(el)el.classList.remove('err');const b=$('#reqBanner');if(b&&missingRequired().length===0)b.style.display='none';}
 function updateFillProgress(){var fields=activeFillFields();var done=fields.filter(isAnswered).length;var pct=fields.length?Math.round(done/fields.length*100):0;var p=$('#fillProg');if(p)p.style.width=pct+'%';var c=$('#fillCount');if(c)c.textContent=done+'/'+fields.length+' completed';updateRecChip();}
 function renderSection(sec){return sec.fields.map(f=>renderField(f)).join('');}
-function renderAllSections(){return FILL_SECTIONS.map(function(sec,i){return `<div class="card fillsec">
+function renderAllSections(){
+  return FILL_SECTIONS.map(function(sec,i){
+    const rep=!!sec.repeat;
+    const c=rep?repCount(i):0;
+    return `<div class="card fillsec">
     <div class="fillsec-head flex ac g10"><span class="secnum">${i+1}</span><span class="catsq" style="width:38px;height:38px;background:var(--blue-bg);color:var(--blue)"><i data-lucide="${sec.icon}"></i></span>
-      <div class="grow"><div class="sec-title" style="font-size:16px">${sec.title}</div><div class="muted small">${sec.fields.length} field${sec.fields.length>1?'s':''}</div></div></div>
-    ${renderSection(sec)}
-  </div>`;}).join('');}
+      <div class="grow"><div class="flex ac g6 wrap"><div class="sec-title" style="font-size:16px">${sec.title}</div>
+        ${rep?'<span class="ftag">REPEATABLE</span>':''}</div>
+        <div class="muted small">${rep?c+' '+(c===1?sec.repeat.label.toLowerCase():sec.repeat.label.toLowerCase()+'s')+' · '+sec.fields.length+' fields each':sec.fields.length+' field'+(sec.fields.length>1?'s':'')}</div></div></div>
+    ${rep?renderRepeatSection(sec,i,c):renderSection(sec)}
+  </div>`;}).join('');
+}
+function renderRepeatSection(sec,si,c){
+  let out='';
+  for(let n=1;n<=c;n++){
+    out+=`<div class="repitem" id="rep_${si}_${n}">
+      <div class="rephead">
+        <span class="repnum">${n}</span>
+        <div class="grow"><div class="tt" style="font-size:14px">${sec.repeat.label} ${n}</div></div>
+        ${c>sec.repeat.min?`<span class="repdel" onclick="removeRep(${si},${n})"><i data-lucide="trash-2"></i></span>`:''}
+      </div>
+      ${sec.fields.map(f=>renderField(instF(f,n))).join('')}
+    </div>`;
+  }
+  out+=`<button class="btn btn-ghost btn-block mt4" style="border-style:dashed" onclick="addRep(${si})">
+    <i data-lucide="plus"></i> Add another ${sec.repeat.label.toLowerCase()}</button>
+  <div class="hint" style="text-align:center;margin-top:8px">Add as many as the household needs — the form started with ${sec.repeat.count}.</div>`;
+  return out;
+}
 function renderFillBody(){var el=$('#fillbody');if(el){el.innerHTML=renderAllSections();icons();bindSignatures();updateFillProgress();}}
 function renderField(f){
   const a=fill.answers[f.id];
@@ -1761,7 +1907,9 @@ SCREENS['fu-sync']=()=>{
   const drafts=MYSUBS.filter(r=>r.s==='draft');
   const nameOf=r=>(FORMS.find(x=>x.id===r.f)||{}).n||'Form';
   return `
-  <div style="background:#fff;padding:14px 16px;border-bottom:1px solid var(--border)"><h1 class="title">Offline Sync</h1><div class="muted mt4">Records saved on this device</div></div>
+  <div class="phead-wrap">
+    <div class="phead"><h1 class="ptitle">Offline Sync</h1></div>
+  </div>
   <div class="pad pb">
     <div class="flex g12">
       <div class="card p tap grow" style="background:linear-gradient(135deg,#F2F2F2,#fff);border-color:#DEDEDE" onclick="jumpTo('secQueued')">
@@ -1881,8 +2029,9 @@ function confirmLogout(){
 SCREENS['profile-language']=()=>{
   statusLight(false);
   return `
-  <div style="background:#fff;padding:14px 16px;border-bottom:1px solid var(--border)"><span class="lnk flex ac g6" onclick="nav('${ROLE==='field'?'fu-profile':'ad-profile'}')" style="margin-bottom:8px"><i data-lucide="arrow-left"></i> Profile</span>
-    <div class="tt" style="font-size:18px">Language</div><div class="muted mt4">Applies to the app, not to form content</div></div>
+  <div class="phead-wrap">
+    <div class="phead"><span class="pback" onclick="nav('${ROLE==='field'?'fu-profile':'ad-profile'}')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">Language</h1></div>
+  </div>
   <div class="pad pb">
     <div class="card p">${LANGS.map(l=>`<div class="setrow" onclick="setLang('${l.replace(/'/g,"\\'")}')">
       <span class="grow" style="font-weight:600;color:var(--heading)">${l}</span>
@@ -1900,8 +2049,9 @@ SCREENS['profile-data']=()=>{
   const synced=MYSUBS.filter(r=>r.s==='submitted').length;
   const photos=MYSUBS.reduce((n,r)=>n+((r.files||[]).length),0);
   return `
-  <div style="background:#fff;padding:14px 16px;border-bottom:1px solid var(--border)"><span class="lnk flex ac g6" onclick="nav('${ROLE==='field'?'fu-profile':'ad-profile'}')" style="margin-bottom:8px"><i data-lucide="arrow-left"></i> Profile</span>
-    <div class="tt" style="font-size:18px">Storage & cached forms</div><div class="muted mt4">What this app keeps on the device</div></div>
+  <div class="phead-wrap">
+    <div class="phead"><span class="pback" onclick="nav('${ROLE==='field'?'fu-profile':'ad-profile'}')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">Storage & cached forms</h1></div>
+  </div>
   <div class="pad pb">
     <div class="card p">
       <div class="flex ac g12"><span class="catsq" style="width:44px;height:44px;background:var(--blue-bg);color:var(--blue)"><i data-lucide="database"></i></span>
@@ -1964,12 +2114,12 @@ SCREENS['legal']=({doc})=>{
   const d=LEGAL[doc]||LEGAL.terms;
   const other=doc==='privacy'?'terms':'privacy';
   return `
-  <div style="background:#fff;padding:14px 16px;border-bottom:1px solid var(--border)"><span class="lnk flex ac g6" onclick="nav('${ROLE==='field'?'fu-profile':'ad-profile'}')" style="margin-bottom:8px"><i data-lucide="arrow-left"></i> Profile</span>
-    <div class="flex ac g10"><span class="catsq" style="width:40px;height:40px;background:var(--blue-bg);color:var(--blue)"><i data-lucide="${d.icon}"></i></span>
-      <div class="grow"><div class="tt" style="font-size:18px">${d.t}</div><div class="muted small mt4">${d.upd}</div></div></div>
+  <div class="phead-wrap">
+    <div class="phead"><span class="pback" onclick="nav('${ROLE==='field'?'fu-profile':'ad-profile'}')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">${d.t}</h1></div>
   </div>
   <div class="pad pb">
-    <div class="card p"><div style="font-size:14.5px;line-height:1.65;color:var(--strong)">${d.intro}</div></div>
+    <div class="card p"><div class="muted small" style="margin-bottom:8px">${d.upd}</div>
+      <div style="font-size:14.5px;line-height:1.65;color:var(--strong)">${d.intro}</div></div>
     <div class="card p mt14">
       ${d.body.map((b,i)=>`<div style="${i?'padding-top:16px;margin-top:16px;border-top:1px solid var(--border2)':''}">
         <div class="sec-title" style="font-size:15px;margin-bottom:6px">${b[0]}</div>
@@ -1984,8 +2134,9 @@ SCREENS['legal']=({doc})=>{
 SCREENS['profile-about']=()=>{
   statusLight(false);
   return `
-  <div style="background:#fff;padding:14px 16px;border-bottom:1px solid var(--border)"><span class="lnk flex ac g6" onclick="nav('${ROLE==='field'?'fu-profile':'ad-profile'}')" style="margin-bottom:8px"><i data-lucide="arrow-left"></i> Profile</span>
-    <div class="tt" style="font-size:18px">About this app</div></div>
+  <div class="phead-wrap">
+    <div class="phead"><span class="pback" onclick="nav('${ROLE==='field'?'fu-profile':'ad-profile'}')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">About this app</h1></div>
+  </div>
   <div class="pad pb">
     <div class="card p" style="text-align:center">
       <div style="width:64px;height:64px;border-radius:18px;background:#111;display:grid;place-items:center;color:#fff;margin:0 auto 12px"><i data-lucide="leaf" style="width:32px;height:32px"></i></div>
@@ -2069,7 +2220,13 @@ function renderBuilderFields(){
   if(!builder.fields.length)return `<div class="card p" style="text-align:center;padding:40px 20px;border-style:dashed"><i data-lucide="file-text" style="width:38px;height:38px;color:var(--metric-muted)"></i><div class="sec-title mt12">Start building your form</div><div class="muted mt6">Tap “Add Field” to place questions and sections.</div></div>`;
   return builder.fields.map((f,i)=>{
     const ctrls=`<div class="fctrl"><span onclick="moveField(${i},-1)"><i data-lucide="chevron-up"></i></span><span onclick="moveField(${i},1)"><i data-lucide="chevron-down"></i></span><span style="color:var(--error)" onclick="delField(${i})"><i data-lucide="trash-2"></i></span></div>`;
-    if(f.section)return `<div class="section-band"><div class="grow"><div class="sl">SECTION</div><div class="st">${esc(f.label)}</div></div>${ctrls}</div>`;
+    if(f.section)return `<div class="section-band"><div class="grow">
+      <div class="sl">SECTION</div><div class="st">${esc(f.label)}</div>
+      <div class="flex ac g6 mt6 wrap">
+        ${f.repeat?`<span class="ftag">REPEATS ×${f.repeat.count}</span><span class="muted small">per ${esc(f.repeat.label.toLowerCase())}</span>`
+          :'<span class="muted small">Asked once</span>'}
+        <span class="lnk small" onclick="openRepeatSheet(${i})">${f.repeat?'Edit':'Make repeatable'}</span>
+      </div></div>${ctrls}</div>`;
     /* one field titles every record this form produces — the bookmark picks it */
     const recBtn=`<span onclick="setRecField(${i})" style="color:${f.rec?'var(--blue)':'var(--metric-muted)'}"><i data-lucide="bookmark"${f.rec?' fill="currentColor"':''}></i></span>`;
     const ctrls2=ctrls.replace('<div class="fctrl">','<div class="fctrl">'+recBtn);
@@ -2092,6 +2249,47 @@ function addField(type){
   if(!base.section&&!builder.fields.some(f=>f.rec))base.rec=true;
   builder.fields.push(base);closeSheet();nav('ad-builder');toast(type+' added','plus');
 }
+/* A repeatable section asks the same questions once per person, plot or visit.
+   The count here is the starting number; whoever fills the form can add more. */
+function openRepeatSheet(i){
+  const f=builder.fields[i];if(!f||!f.section)return;
+  const r=f.repeat||{count:3,min:1,max:25,label:'Entry'};
+  $('#sheetTitle').textContent='Repeatable section';
+  $('#sheetBody').innerHTML=`
+    <div class="muted" style="font-size:14px;line-height:1.6">“${esc(f.label)}” can be captured once, or repeated — one copy per family member, plot or visit.</div>
+    <div class="flex between ac mt16" style="padding:12px 0;border-top:1px solid var(--border2);border-bottom:1px solid var(--border2)">
+      <div class="grow"><div class="tt" style="font-size:14px">Repeat this section</div>
+        <div class="hint">Each copy collects the same fields.</div></div>
+      <div class="tgl ${f.repeat?'on':''}" onclick="toggleRepeat(${i})"></div>
+    </div>
+    ${f.repeat?`
+    <div class="field mt16"><label>What is each copy called?</label>
+      <div class="input"><input value="${esc(r.label)}" placeholder="Family Member" oninput="builder.fields[${i}].repeat.label=this.value||'Entry'"></div>
+      <div class="hint">Entries are headed “${esc(r.label)} 1”, “${esc(r.label)} 2”, and so on.</div></div>
+    <div class="field" style="margin-bottom:0"><label>How many to start with?</label>
+      <div class="flex ac g12">
+        <button class="btn btn-ghost btn-sm" onclick="bumpRepeat(${i},-1)" style="width:46px"><i data-lucide="minus"></i></button>
+        <div style="flex:1;text-align:center"><div style="font-size:30px;font-weight:800;color:var(--metric);font-family:'DM Sans',sans-serif">${r.count}</div>
+          <div class="muted small">copies shown initially</div></div>
+        <button class="btn btn-ghost btn-sm" onclick="bumpRepeat(${i},1)" style="width:46px"><i data-lucide="plus"></i></button>
+      </div></div>
+    <div class="banner ok mt16" style="border-style:dashed"><div class="t flex ac g8"><i data-lucide="info"></i> The field user can add more</div>
+      <div class="muted mt6">If a household has 8 members and this starts at ${r.count}, they tap “Add another ${esc(r.label.toLowerCase())}” until all 8 are entered.</div></div>`:''}
+    <button class="btn btn-primary btn-block mt16" onclick="closeSheet()"><i data-lucide="check"></i> Done</button>`;
+  $('#sheetbd').classList.add('show');$('#sheet').classList.add('show');icons();
+}
+function toggleRepeat(i){
+  const f=builder.fields[i];
+  f.repeat=f.repeat?null:{count:3,min:1,max:25,label:'Entry'};
+  nav('ad-builder');openRepeatSheet(i);
+  toast(f.repeat?'Section repeats':'Section asked once','repeat');
+}
+function bumpRepeat(i,d){
+  const f=builder.fields[i];if(!f.repeat)return;
+  f.repeat.count=Math.max(1,Math.min(f.repeat.max,f.repeat.count+d));
+  nav('ad-builder');openRepeatSheet(i);
+}
+
 /* Exactly one field can title records — picking a new one releases the old. */
 function setRecField(i){
   const f=builder.fields[i];if(!f||f.section)return;
@@ -2118,10 +2316,8 @@ SCREENS['fu-programs']=()=>{
   statusLight(false);
   const list=myPrograms();
   return `
-  <div style="background:#fff;padding:14px 16px;border-bottom:1px solid var(--border)">
-    <span class="lnk flex ac g6" onclick="nav('${lastTab}')" style="margin-bottom:8px"><i data-lucide="arrow-left"></i> Back</span>
-    <h1 class="title">My Programmes</h1>
-    <div class="muted mt4">${list.length} programme${list.length===1?'':'s'} you collect data for</div>
+  <div class="phead-wrap">
+    <div class="phead"><span class="pback" onclick="nav('${lastTab}')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">My Programmes</h1></div>
   </div>
   <div class="pad pb">
     <div class="banner ok" style="border-style:dashed"><div class="t flex ac g8"><i data-lucide="eye"></i> View only</div>
@@ -2155,10 +2351,8 @@ SCREENS['fu-progdetail']=({name})=>{
   const places=new Set(fs.flatMap(f=>subsFor(f.id).map(r=>r.rec))).size;
   const inds=[...new Set(fs.flatMap(f=>f.ind))];
   return `
-  <div style="background:#fff;padding:14px 16px;border-bottom:1px solid var(--border)">
-    <span class="lnk flex ac g6" onclick="nav('fu-programs')" style="margin-bottom:8px"><i data-lucide="arrow-left"></i> Programmes</span>
-    <div class="flex between g8" style="align-items:flex-start"><div class="tt grow" style="font-size:18px;line-height:1.3">${p.name}</div>${statusBadge(p.s)}</div>
-    <div class="muted mt4">${p.org}</div>
+  <div class="phead-wrap">
+    <div class="phead"><span class="pback" onclick="nav('fu-programs')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">${p.name}</h1>${statusBadge(p.s)}</div>
   </div>
   <div class="pad pb">
     ${p.s==='paused'?`<div class="banner pend"><div class="t flex ac g8"><i data-lucide="pause"></i> Programme paused</div>
@@ -2194,8 +2388,10 @@ SCREENS['fu-progdetail']=({name})=>{
 SCREENS['ad-programs']=()=>{
   statusLight(false);
   return `
-  <div style="background:#fff;padding:14px 16px;border-bottom:1px solid var(--border)"><h1 class="title">Programs</h1><div class="muted mt4">Conservation programs & their forms</div>
-    <div class="input mt12" style="background:#fff"><span class="lead"><i data-lucide="search"></i></span><input placeholder="Search programs..."></div></div>
+  <div class="phead-wrap">
+    <div class="phead"><h1 class="ptitle">Programs</h1></div>
+    <div class="mt12"><div class="input mt12" style="background:#fff"><span class="lead"><i data-lucide="search"></i></span><input placeholder="Search programs..."></div></div>
+  </div>
   <div class="pad pb">${PROGRAMS.map((p,i)=>{const c=CAT[p.cat];return `<div class="card p tap mt12" onclick="nav('ad-progdetail',{i:${i}})">
     <div class="flex ac g12"><span class="catsq" style="background:${c.bg};color:${c.c}"><i data-lucide="${c.ic}"></i></span>
       <div class="grow"><div class="tt" style="font-size:15px">${p.name}</div><div class="muted small">${p.org}</div></div>${statusBadge(p.s)}</div>
@@ -2207,8 +2403,9 @@ SCREENS['ad-progdetail']=({i})=>{
   const p=PROGRAMS[i]||PROGRAMS[0];const c=CAT[p.cat];
   const forms=FORMS.filter(f=>f.prog===p.name);const show=forms.length?forms:FORMS.slice(0,3);
   return `
-  <div style="background:#fff;padding:14px 16px;border-bottom:1px solid var(--border)"><span class="lnk flex ac g6" onclick="nav('ad-programs')" style="margin-bottom:8px"><i data-lucide="arrow-left"></i> Programs</span>
-    <div class="tt" style="font-size:18px">${p.name}</div><div class="muted mt4">${p.org}</div></div>
+  <div class="phead-wrap">
+    <div class="phead"><span class="pback" onclick="nav('ad-programs')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">${p.name}</h1></div>
+  </div>
   <div class="pad pb">
     <div class="card p"><div class="flex ac g12"><span class="catsq" style="background:${c.bg};color:${c.c}"><i data-lucide="${c.ic}"></i></span><div class="muted grow">${p.desc}</div></div>
       <div class="flex mt14" style="border-top:1px solid var(--border2);padding-top:14px">${[[p.forms,'Forms'],[p.r,'Responses'],[p.ind,'Indicators']].map(s=>`<div style="flex:1;text-align:center"><div style="font-size:20px;font-weight:800;color:var(--metric);font-family:'DM Sans'">${s[0]}</div><div class="muted small">${s[1]}</div></div>`).join('')}</div>
@@ -2225,7 +2422,9 @@ SCREENS['ad-subs']=()=>{
   statusLight(false);
   const list=SUBS.filter(s=>subTab==='All'||s.s.toLowerCase()===subTab.toLowerCase());
   return `
-  <div style="background:#fff;padding:14px 16px;border-bottom:1px solid var(--border)"><h1 class="title">Submissions</h1><div class="muted mt4">${SUBS.length} records across ${new Set(SUBS.map(x=>x.form)).size} forms</div></div>
+  <div class="phead-wrap">
+    <div class="phead"><h1 class="ptitle">Submissions</h1></div>
+  </div>
   <div class="pad" style="padding-bottom:8px"><div class="chips">${['All','Submitted','Draft'].map(t=>`<div class="chip ${t===subTab?'sel':''}" onclick="subTab='${t}';nav('ad-subs')">${t}</div>`).join('')}</div></div>
   <div class="pad pb" style="padding-top:4px">${list.map((s,i)=>{const c=CAT[s.cat];return `<div class="card p tap mt12" onclick="nav('ad-subdetail',{i:${SUBS.indexOf(s)}})">
     <div class="flex between ac"><div class="grow"><div class="tt flex ac g6" style="font-size:14px"><i data-lucide="bookmark" style="width:13px;height:13px"></i>${s.rec}</div><div class="muted small mt4">${s.form}</div></div>${statusBadge(s.s)}</div>
@@ -2236,8 +2435,9 @@ SCREENS['ad-subdetail']=({i})=>{
   statusLight(false);
   const s=SUBS[i]||SUBS[0];
   return `
-  <div style="background:#fff;padding:14px 16px;border-bottom:1px solid var(--border)"><div class="flex between ac"><span class="lnk flex ac g6" onclick="nav('ad-subs')"><i data-lucide="arrow-left"></i> Back</span><span class="ipill" onclick="toast('Shared','share-2')"><i data-lucide="share-2"></i></span></div>
-    <div class="tt mt8" style="font-size:19px">${s.rec}</div><div class="muted mt4">${s.form}</div></div>
+  <div class="phead-wrap">
+    <div class="phead"><span class="pback" onclick="nav('ad-subs')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">${s.rec}</h1><span class="ipill" onclick="toast('Shared','share-2')"><i data-lucide="share-2"></i></span></div>
+  </div>
   <div class="pad pb">
     <div class="card p">${statusBadge(s.s)}<div class="mt10">${infoRow('Record',s.rec,'bookmark')}${infoRow('Submitted by',s.by,'user')}${infoRow('Submitted at',s.at,'clock')}${infoRow('Location',s.loc,'map-pin')}${infoRow('GPS',s.gps,'navigation')}</div></div>
     ${SUBDETAIL.map(sec=>`<div style="font-size:12px;font-weight:800;letter-spacing:.5px;color:var(--blue);text-transform:uppercase;margin:20px 0 4px">${sec.section}</div>
@@ -2254,8 +2454,9 @@ SCREENS['ad-analytics']=({id})=>{
   const inds=[['Water Quality Index',82],['Community Participation',67],['Rainfall Measurement',74]];
   const regions=[['North Zone',80],['South Zone',62],['East Zone',48],['West Zone',70],['Central Zone',55]];
   return `
-  <div style="background:#fff;padding:14px 16px;border-bottom:1px solid var(--border)"><span class="lnk flex ac g6" onclick="nav('ad-forms')" style="margin-bottom:8px"><i data-lucide="arrow-left"></i> Back</span>
-    <div class="tt" style="font-size:17px">${f.n}</div><div class="muted mt4">Form performance & analytics</div></div>
+  <div class="phead-wrap">
+    <div class="phead"><span class="pback" onclick="nav('ad-forms')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">${f.n}</h1></div>
+  </div>
   <div class="pad pb">
     <div class="statg">${[['Total Responses',f.r],['Completion','87%'],['Avg Time','4.2m'],['This Week','+156']].map(s=>`<div class="statc" style="padding:14px"><div class="v" style="font-size:22px">${s[1]}</div><div class="l">${s[0]}</div></div>`).join('')}</div>
     <div class="card p mt14"><div class="sec-title" style="font-size:15px">Responses over time</div>
@@ -2272,10 +2473,10 @@ SCREENS['ad-analytics']=({id})=>{
 SCREENS['ad-templates']=()=>{
   statusLight(false);
   return `
-  <div style="background:#fff;padding:14px 16px;border-bottom:1px solid var(--border)">
-    <span class="lnk flex ac g6" onclick="nav('${lastTab}')" style="margin-bottom:8px"><i data-lucide="arrow-left"></i> Back</span>
-    <div class="flex between ac"><h1 class="title">Templates</h1><button class="btn btn-primary btn-sm" onclick="openBuilder('new')"><i data-lucide="plus"></i> New</button></div>
-    <div class="input mt12" style="background:#fff"><span class="lead"><i data-lucide="search"></i></span><input placeholder="Search templates..."></div></div>
+  <div class="phead-wrap">
+    <div class="phead"><span class="pback" onclick="nav('${lastTab}')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">Templates</h1><button class="btn btn-primary btn-sm" onclick="openBuilder('new')"><i data-lucide="plus"></i> New</button></div>
+    <div class="mt12"><div class="input mt12" style="background:#fff"><span class="lead"><i data-lucide="search"></i></span><input placeholder="Search templates..."></div></div>
+  </div>
   <div class="pad pb">${TEMPLATES.map(t=>{const c=CAT[t.cat];return `<div class="card p mt12"><div class="flex ac g12"><span class="catsq" style="background:${c.bg};color:${c.c}"><i data-lucide="${c.ic}"></i></span><div class="grow"><div class="tt" style="font-size:15px">${t.name}</div><div class="muted small">${t.fields} fields · used ${t.uses} times</div></div></div>
     <div class="muted mt10">${t.desc}</div>
     <button class="btn btn-outline btn-sm btn-block mt12" onclick="openBuilder('new');toast('Template loaded')"><i data-lucide="copy"></i> Use Template</button></div>`;}).join('')}</div>`;
@@ -2286,7 +2487,11 @@ SCREENS['ad-preview']=({id})=>{
   statusLight(false);
   const f=FORMS.find(x=>x.id===id)||FORMS[0];const c=CAT[f.cat];
   return `
-  <div style="background:#fff;padding:14px 16px;border-bottom:1px solid var(--border)"><div class="flex between ac"><span onclick="nav('${ROLE==='field'?'fu-forms':'ad-forms'}')" style="cursor:pointer"><i data-lucide="x"></i></span><b>Preview</b><span class="ipill" onclick="toast('Shared','share-2')"><i data-lucide="share-2"></i></span></div></div>
+  <div class="phead-wrap">
+    <div class="phead"><span class="pback" onclick="nav('${ROLE==='field'?'fu-forms':'ad-forms'}')"><i data-lucide="x"></i></span>
+      <h1 class="ptitle">Preview</h1>
+      <span class="ipill" onclick="toast('Shared','share-2')"><i data-lucide="share-2"></i></span></div>
+  </div>
   <div class="pad pb">
     <div class="card p"><span class="badge b-blue"><i data-lucide="tag" style="width:13px;height:13px"></i> ${f.prog}</span>
       <div class="tt mt12" style="font-size:20px">${f.n}</div><div class="muted mt6">${f.d}</div></div>
@@ -2308,7 +2513,9 @@ let accPrefs={email:true,push:true,offline:false};
 SCREENS['ad-account']=()=>{
   statusLight(false);
   return `
-  <div style="background:#fff;padding:14px 16px;border-bottom:1px solid var(--border)"><span class="lnk flex ac g6" onclick="nav('${ROLE==='field'?'fu-profile':'ad-profile'}')" style="margin-bottom:8px"><i data-lucide="arrow-left"></i> Back</span><div class="tt" style="font-size:18px">Account Settings</div></div>
+  <div class="phead-wrap">
+    <div class="phead"><span class="pback" onclick="nav('${ROLE==='field'?'fu-profile':'ad-profile'}')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">Account Settings</h1></div>
+  </div>
   <div class="pad pb">
     <div class="card p flex ac g12"><div class="avatar" style="width:64px;height:64px;font-size:22px">${ROLE==='field'?'RK':'JA'}</div><div class="grow"><div class="tt">${ROLE==='field'?'Rajesh Kumar':'Jay'}</div><div class="muted small">${ROLE==='field'?'Field User':'FES Admin'}</div><button class="btn btn-outline btn-sm mt8" onclick="toast('Choose photo')"><i data-lucide="camera"></i> Change Photo</button></div></div>
     <div class="card p mt14"><div class="sec-title" style="font-size:15px;margin-bottom:12px">Profile</div>
@@ -2336,7 +2543,9 @@ SCREENS['changepw']=()=>{
   statusLight(false);
   cpw={cur:'',nw:'',cf:''};
   return `
-  <div style="background:#fff;padding:14px 16px;border-bottom:1px solid var(--border)"><span class="lnk flex ac g6" onclick="nav('fu-profile')" style="margin-bottom:8px"><i data-lucide="arrow-left"></i> Back</span><div class="tt" style="font-size:18px">Change Password</div><div class="muted mt4">Keep your account secure</div></div>
+  <div class="phead-wrap">
+    <div class="phead"><span class="pback" onclick="nav('fu-profile')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">Change Password</h1></div>
+  </div>
   <div class="pad pb">
     <div class="card p" style="text-align:center;padding:22px 16px;margin-bottom:14px">
       <div style="width:56px;height:56px;border-radius:16px;background:var(--blue-bg);color:var(--blue);display:grid;place-items:center;margin:0 auto 10px"><i data-lucide="shield-check" style="width:26px;height:26px"></i></div>
@@ -2386,7 +2595,9 @@ function cpwSubmit(){
 SCREENS['ad-team']=()=>{
   statusLight(false);
   return `
-  <div style="background:#fff;padding:14px 16px;border-bottom:1px solid var(--border)"><div class="flex between ac"><div><span class="lnk flex ac g6" onclick="nav('ad-profile')" style="margin-bottom:8px"><i data-lucide="arrow-left"></i> Back</span><div class="tt" style="font-size:18px">Team</div></div><button class="btn btn-primary btn-sm" onclick="toast('Invite sent','user-plus')"><i data-lucide="user-plus"></i> Invite</button></div><div class="muted mt4">${TEAM.length} members</div></div>
+  <div class="phead-wrap">
+    <div class="phead"><span class="pback" onclick="nav('ad-profile')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">Team</h1><button class="btn btn-primary btn-sm" onclick="toast('Invite sent','user-plus')"><i data-lucide="user-plus"></i> Invite</button></div>
+  </div>
   <div class="pad pb">${TEAM.map(m=>{const admin=m.role==='Org Admin';return `<div class="card p mt12"><div class="flex ac g12"><div class="avatar">${m.in}${m.on?'<span class="online"></span>':''}</div>
     <div class="grow"><div class="flex ac g8"><span class="tt" style="font-size:15px">${m.name}</span><span class="badge ${admin?'b-blue':'b-s'}" style="height:22px;font-size:11px">${m.role}</span></div><div class="muted small mt4">${m.email}</div></div>
     <span class="chev" onclick="toast('Member options')"><i data-lucide="more-vertical"></i></span></div></div>`;}).join('')}</div>`;
@@ -2398,7 +2609,9 @@ SCREENS['ad-integrations']=()=>{
   statusLight(false);
   const ICO={sheet:'sheet','bar-chart-3':'bar-chart-3',webhook:'webhook',slack:'slack','refresh-cw':'refresh-cw',code:'code'};
   return `
-  <div style="background:#fff;padding:14px 16px;border-bottom:1px solid var(--border)"><span class="lnk flex ac g6" onclick="nav('ad-profile')" style="margin-bottom:8px"><i data-lucide="arrow-left"></i> Back</span><div class="tt" style="font-size:18px">Integrations</div><div class="muted mt4">Connect your data pipeline</div></div>
+  <div class="phead-wrap">
+    <div class="phead"><span class="pback" onclick="nav('ad-profile')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">Integrations</h1></div>
+  </div>
   <div class="pad pb">${INTEG.map(it=>{const on=integState[it.name];return `<div class="card p mt12"><div class="flex ac g12"><span class="catsq" style="background:var(--blue-bg);color:var(--blue)"><i data-lucide="${ICO[it.ic]||'plug'}"></i></span>
     <div class="grow"><div class="tt" style="font-size:15px">${it.name}</div><div class="muted small">${it.desc}</div></div></div>
     <div class="flex ac g8 mt12">${on?`<span class="badge b-s"><i data-lucide="check" style="width:13px;height:13px"></i> Connected</span><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="toast('Manage ${it.name}')">Manage</button>`:`<button class="btn btn-primary btn-sm btn-block" onclick="integState['${it.name}']=true;nav('ad-integrations');toast('${it.name} connected','check-circle-2')"><i data-lucide="plus"></i> Connect</button>`}</div></div>`;}).join('')}</div>`;
@@ -2482,9 +2695,9 @@ SCREENS['ad-help']=()=>{
   statusLight(false);
   const open=TICKETS.filter(t=>t.s!=='resolved').length;
   return `
-  <div style="background:#fff;padding:14px 16px;border-bottom:1px solid var(--border)">
-    <div class="flex between ac"><span class="lnk flex ac g6" onclick="nav('${ROLE==='field'?'fu-profile':'ad-profile'}')"><i data-lucide="arrow-left"></i> Back</span>${helpInboxBtn()}</div>
-    <div class="tt mt8" style="font-size:18px">Help & Support</div></div>
+  <div class="phead-wrap">
+    <div class="phead"><span class="pback" onclick="nav('${ROLE==='field'?'fu-profile':'ad-profile'}')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">Help & Support</h1>${helpInboxBtn()}</div>
+  </div>
   <div class="pad pb">
     <div class="input" style="background:#fff"><span class="lead"><i data-lucide="search"></i></span>
       <input placeholder="Search help articles..." value="${esc(helpQ)}" oninput="helpSearch(this.value)">
@@ -2539,9 +2752,9 @@ function faqCard(list){
 SCREENS['help-guide']=()=>{
   statusLight(false);
   return `
-  <div style="background:#fff;padding:14px 16px;border-bottom:1px solid var(--border)">
-    <div class="flex between ac"><span class="lnk flex ac g6" onclick="nav('ad-help')"><i data-lucide="arrow-left"></i> Help</span>${helpInboxBtn()}</div>
-    <div class="tt mt8" style="font-size:18px">User Guide</div><div class="muted mt4">${GUIDE_ALL.length} articles · written for the field</div></div>
+  <div class="phead-wrap">
+    <div class="phead"><span class="pback" onclick="nav('ad-help')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">User Guide</h1>${helpInboxBtn()}</div>
+  </div>
   <div class="pad pb">
     ${GUIDE.map(g=>`<div class="pgroup" style="margin-top:14px">${g.cat}</div>
       <div class="card p">${g.items.map(x=>`<div class="row" style="cursor:pointer" onclick="nav('help-article',{id:'${x.id}'})">
@@ -2557,12 +2770,12 @@ SCREENS['help-article']=({id})=>{
   const x=GUIDE_ALL[i<0?0:i];const next=GUIDE_ALL[(i<0?0:i)+1];
   let step=0;
   return `
-  <div style="background:#fff;padding:14px 16px;border-bottom:1px solid var(--border)">
-    <div class="flex between ac" style="margin-bottom:8px"><span class="lnk flex ac g6" onclick="nav('help-guide')"><i data-lucide="arrow-left"></i> User Guide</span>${helpInboxBtn()}</div>
-    <div class="muted small">${x.cat} · ${x.min} min read</div>
-    <div class="tt mt4" style="font-size:19px;line-height:1.3">${x.t}</div></div>
+  <div class="phead-wrap">
+    <div class="phead"><span class="pback" onclick="nav('help-guide')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">${x.t}</h1>${helpInboxBtn()}</div>
+  </div>
   <div class="pad pb">
     <div class="card p">
+      <div class="muted small" style="margin-bottom:10px">${x.cat} · ${x.min} min read</div>
       ${x.body.map(bl=>{
         if(bl[0]==='h')return `<div class="sec-title" style="font-size:15px;margin:16px 0 8px">${bl[1]}</div>`;
         if(bl[0]==='s'){step++;return `<div class="flex g10" style="margin:10px 0;align-items:flex-start"><span class="secnum" style="margin-top:2px">${step}</span><div style="font-size:14px;line-height:1.6;color:var(--strong)">${bl[1]}</div></div>`;}
@@ -2589,9 +2802,9 @@ SCREENS['help-contact']=()=>{
   statusLight(false);
   const bad=k=>support.err&&!support[k];
   return `
-  <div style="background:#fff;padding:14px 16px;border-bottom:1px solid var(--border)">
-    <div class="flex between ac"><span class="lnk flex ac g6" onclick="nav('ad-help')"><i data-lucide="arrow-left"></i> Help</span>${helpInboxBtn()}</div>
-    <div class="tt mt8" style="font-size:18px">Contact Support</div><div class="muted mt4">Replies within one working day</div></div>
+  <div class="phead-wrap">
+    <div class="phead"><span class="pback" onclick="nav('ad-help')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">Contact Support</h1>${helpInboxBtn()}</div>
+  </div>
   <div class="pad pb">
     <div class="card p">
       <div class="sec-title" style="font-size:15px;margin-bottom:4px">Reach us directly</div>
@@ -2646,9 +2859,9 @@ SCREENS['help-bug']=()=>{
   statusLight(false);
   const bad=k=>bugRep.err&&!bugRep[k];
   return `
-  <div style="background:#fff;padding:14px 16px;border-bottom:1px solid var(--border)">
-    <div class="flex between ac"><span class="lnk flex ac g6" onclick="nav('ad-help')"><i data-lucide="arrow-left"></i> Help</span>${helpInboxBtn()}</div>
-    <div class="tt mt8" style="font-size:18px">Report a Bug</div><div class="muted mt4">Tell us what went wrong so we can reproduce it</div></div>
+  <div class="phead-wrap">
+    <div class="phead"><span class="pback" onclick="nav('ad-help')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">Report a Bug</h1>${helpInboxBtn()}</div>
+  </div>
   <div class="pad pb">
     <div class="card p">
       <div class="field"><label>Where did it happen? <span class="req">*</span></label>
@@ -2710,8 +2923,9 @@ SCREENS['help-sent']=()=>{
 SCREENS['help-tickets']=()=>{
   statusLight(false);
   return `
-  <div style="background:#fff;padding:14px 16px;border-bottom:1px solid var(--border)"><span class="lnk flex ac g6" onclick="nav('ad-help')" style="margin-bottom:8px"><i data-lucide="arrow-left"></i> Help</span>
-    <div class="tt" style="font-size:18px">My requests</div><div class="muted mt4">${TICKETS.length} request${TICKETS.length===1?'':'s'} · ${TICKETS.filter(t=>t.s!=='resolved').length} open</div></div>
+  <div class="phead-wrap">
+    <div class="phead"><span class="pback" onclick="nav('ad-help')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">My requests</h1></div>
+  </div>
   <div class="pad pb">
     ${TICKETS.length?TICKETS.map(t=>`<div class="card p tap mt12" onclick="nav('help-ticket',{id:'${t.id}'})">
       <div class="flex between ac g8"><span class="tt grow" style="font-size:14px;line-height:1.35">${esc(t.subject)}</span>${statusBadge(t.s)}</div>
@@ -2725,9 +2939,9 @@ SCREENS['help-ticket']=({id})=>{
   statusLight(false);
   const t=TICKETS.find(x=>x.id===id)||TICKETS[0];
   return `
-  <div style="background:#fff;padding:14px 16px;border-bottom:1px solid var(--border)"><span class="lnk flex ac g6" onclick="nav('help-tickets')" style="margin-bottom:8px"><i data-lucide="arrow-left"></i> My requests</span>
-    <div class="tt" style="font-size:17px;line-height:1.35">${esc(t.subject)}</div>
-    <div class="muted mt4" style="font-family:'DM Sans',sans-serif">${t.id}</div></div>
+  <div class="phead-wrap">
+    <div class="phead"><span class="pback" onclick="nav('help-tickets')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">${esc(t.subject)}</h1></div>
+  </div>
   <div class="pad pb">
     <div class="card p">${statusBadge(t.s)}
       <div class="mt10">${infoRow('Type',t.type,t.type==='Bug'?'bug':'headphones')}${infoRow('Topic',t.topic,'tag')}${infoRow('Sent',t.at,'clock')}${t.file?infoRow('Attachment',t.file,'paperclip'):''}</div>
@@ -2818,7 +3032,7 @@ SCREENS['splash']=()=>{
 };
 
 /* ============================ BOOT ============================ */
-nav('splash');
+if(!restoreScreen())nav('splash');
 </script>
 </body>
 </html>
