@@ -944,22 +944,24 @@ function togglePw(el){const i=el.closest('.input').querySelector('input');const 
    The dashboard answers "how much ground have we covered?", so it counts
    completed forms, the programs they belong to and the distinct locations
    recorded — not vanity totals. */
-function dashStats(isField){
-  if(isField){
-    const done=FORMS.filter(f=>subsFor(f.id).some(r=>r.s!=='draft'));
-    return [[done.length,'Forms completed'],
-            [new Set(done.map(f=>f.prog)).size,'Programs'],
-            [new Set(MYSUBS.filter(r=>r.s!=='draft').map(r=>r.rec)).size,'Locations covered']];
-  }
-  const done=FORMS.filter(f=>f.r>0);
-  return [[done.length,'Forms completed'],
-          [new Set(FORMS.map(f=>f.prog)).size,'Programs'],
-          [new Set(SUBS.map(x=>x.rec)).size,'Locations covered']];
-}
+/* The dashboard KPI row, matching the web portal: the same four measures,
+   the same figures, stacked two-up because four across will not fit a phone.
+   Direction is carried by an arrow, not by colour. */
+const DASH_STATS=[
+  ['file-text','Total Forms','50','+12% from last month','up'],
+  ['users','Total Responses','5,580','+156 this week','up'],
+  ['check-circle-2','Active Programs','34','+3% new this month','up'],
+  ['clock','Avg Response Time','4.2m','−0.3m vs last month','down'],
+];
 function dashStatCard(isField){
-  return `<div class="card p"><div class="flex g12">${dashStats(isField).map(x=>
-    `<div class="grow"><div style="font-size:26px;font-weight:800;color:var(--metric);font-family:'DM Sans'">${x[0]}</div><div class="muted small">${x[1]}</div></div>`).join('')}</div></div>`;
+  return `<div class="statg">${DASH_STATS.map(x=>`<div class="statc">
+    <div class="ic"><i data-lucide="${x[0]}"></i></div>
+    <div class="l" style="margin-bottom:2px">${x[1]}</div>
+    <div class="v">${x[2]}</div>
+    <div class="d flex ac g6" style="color:var(--muted)"><i data-lucide="${x[4]==='up'?'trending-up':'trending-down'}" style="width:13px;height:13px;flex:0 0 auto"></i>${x[3]}</div>
+  </div>`).join('')}</div>`;
 }
+
 /* name · status · program · responses · last modified — tapping opens the
    form detail, which is the fillable view for a field user. */
 function dashFormCard(f,isField){
