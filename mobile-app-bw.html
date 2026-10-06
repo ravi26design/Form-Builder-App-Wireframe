@@ -377,6 +377,12 @@ h1.title{font-size:23px;font-weight:800;color:var(--heading);letter-spacing:-.3p
 .chiprow{padding:14px 16px 0}
 .chiprow .chips{padding-bottom:2px}
 
+/* --- Step indicator --- */
+.stepbar{display:flex;gap:5px;margin-top:14px}
+.stepseg{flex:1;height:5px;border-radius:3px;background:#E4E4E4;transition:background .2s}
+.stepseg.done{background:#111}
+.stepseg.now{background:#8A8A8A}
+
 /* --- Repeatable section entries --- */
 .repitem{border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:12px;background:#FCFCFC}
 .rephead{display:flex;align-items:center;gap:10px;padding-bottom:12px;margin-bottom:14px;border-bottom:1px solid var(--border2)}
@@ -703,7 +709,7 @@ function recSummary(id){
 /* ============================ STATE ============================ */
 let ROLE='field';
 let builder={n:'',d:'',prog:'',cat:'water',fields:[]};
-let fill={i:0,answers:{},geo:{},geoErr:{},showErr:false,reps:{}};
+let fill={i:0,step:0,answers:{},geo:{},geoErr:{},showErr:false,reps:{}};
 let starred={};FORMS.forEach(f=>starred[f.id]=f.star);
 
 /* ============================ HELPERS ============================ */
@@ -1507,7 +1513,7 @@ function openFill(id,subId){
   const form=FORMS.find(x=>x.id===id);
   if(form&&form.s!=='active'){toast('This form is not published yet','lock');return;}
   const existing=subId?MYSUBS.find(x=>x.id===subId):null;
-  fill={i:0,answers:{},formId:id,subId:subId||null,geo:{},geoErr:{},showErr:false,reps:{}};
+  fill={i:0,step:0,answers:{},formId:id,subId:subId||null,geo:{},geoErr:{},showErr:false,reps:{}};
   FILL_SECTIONS.forEach(function(sec,si){if(sec.repeat)fill.reps[si]=sec.repeat.count;});
   const rf=FILL_SECTIONS[0].fields[0];          /* the record-title field */
   rf.label=recLabel(id);rf.ph='Enter '+recOne(id)+' name';
@@ -1542,11 +1548,9 @@ function submitFill(){
   /* nothing leaves the device until every required field has an answer */
   const missing=missingRequired();
   if(missing.length){
-    fill.showErr=true;renderFillBody();
-    const b=$('#reqBanner');if(b){b.style.display='block';const c=$('#reqCount');if(c)c.textContent=missing.length;icons();}
-    const first=document.getElementById('ff_'+missing[0].id);
-    if(first)first.scrollIntoView({behavior:'smooth',block:'center'});
-    toast(missing.length+' required field'+(missing.length>1?'s':'')+' left','alert-circle');
+    for(var si=0;si<FILL_SECTIONS.length;si++){
+      if(stepMissing(si).length){fill.step=si;nav('fu-fill');flagMissing(stepMissing(si));return;}
+    }
     return;
   }
   const doneFields=activeFillFields();
@@ -1563,27 +1567,75 @@ function submitFill(){
   else MYSUBS.unshift({id:++RECID,f:fill.formId,rec:fill.rec,at:fill.at,s:'queued',gps:gpsTxt,subId:fill.subIdShown,files:files});
   nav('fu-done');
 }
+/* The form is filled a section at a time. Each step is small enough to finish
+   in one go, and a step cannot be left until its required fields are answered,
+   so nothing is discovered to be missing at the very end. */
 SCREENS['fu-fill']=()=>{
   statusLight(false);
-  const f=FORMS.find(x=>x.id===fill.formId);const fields=activeFillFields();
-  const done=fields.filter(isAnswered).length;const pct=fields.length?Math.round(done/fields.length*100):0;
+  const last=FILL_SECTIONS.length-1;
+  const step=Math.min(fill.step||0,last);
   return `
   <div style="display:flex;flex-direction:column;height:100%">
     <div style="background:#fff;padding:14px 16px 16px;border-bottom:1px solid var(--border);flex:0 0 auto">
       <div class="flex between ac"><span onclick="nav('fu-detail',{id:${fill.formId}})" style="cursor:pointer"><i data-lucide="x"></i></span>
         <b style="font-size:15px">${fill.subId?'Edit record':'New submission'}</b><span class="lnk" onclick="saveDraft()">Save Draft</span></div>
-      <div class="progtrack mt12"><div class="progfill" id="fillProg" style="width:${pct}%"></div></div>
+      <div class="stepbar" id="stepbar">${stepSegments(step)}</div>
     </div>
     <div style="flex:1;overflow-y:auto;background:var(--canvas);padding:16px" id="fillScroll">
-      <div id="reqBanner" class="banner pend" style="display:${fill.showErr&&missingRequired().length?'block':'none'};margin-bottom:14px">
-        <div class="t flex ac g8"><i data-lucide="alert-circle"></i> <span id="reqCount">${missingRequired().length}</span> required field${missingRequired().length===1?'':'s'} still need an answer</div>
-        <div class="muted mt6">They are marked below — fill them in to submit this record.</div></div>
-      <div id="fillbody">${renderAllSections()}</div></div>
+      <div id="reqBanner" class="banner pend" style="display:none;margin-bottom:14px">
+        <div class="t flex ac g8"><i data-lucide="alert-circle"></i> <span id="reqCount">0</span> required field<span id="reqPlural">s</span> on this step</div>
+        <div class="muted mt6">They are marked below — answer them to continue.</div></div>
+      <div id="fillbody">${renderStepBody(step)}</div></div>
     <div class="pad" style="flex:0 0 auto;background:#fff;border-top:1px solid var(--border);padding-bottom:24px">
-      <button class="btn btn-primary btn-block" onclick="submitFill()"><i data-lucide="check"></i> Submit Record</button>
+      <div class="flex g10">
+        ${step>0?`<button class="btn btn-ghost" style="flex:0 0 46%" onclick="stepBack()"><i data-lucide="arrow-left"></i> Back</button>`:''}
+        ${step<last
+          ? `<button class="btn btn-primary grow" onclick="stepNext()">Next <i data-lucide="arrow-right"></i></button>`
+          : `<button class="btn btn-primary grow" onclick="submitFill()"><i data-lucide="check"></i> Submit Record</button>`}
+      </div>
     </div>
   </div>`;
 };
+/* one segment per section: filled behind you, outlined where you are */
+function stepSegments(step){
+  return FILL_SECTIONS.map((sec,i)=>`<div class="stepseg ${i<step?'done':i===step?'now':''}"></div>`).join('');
+}
+function renderStepBody(step){return renderOneSection(FILL_SECTIONS[step],step);}
+/* the fields a single step owns, follow-ups and repeat entries included */
+function stepFields(si){
+  const sec=FILL_SECTIONS[si];var out=[];
+  if(sec.repeat){
+    const c=repCount(si);
+    for(var n=1;n<=c;n++)sec.fields.forEach(function(f){pushWithFollowups(instF(f,n),out);});
+  }else sec.fields.forEach(function(f){pushWithFollowups(f,out);});
+  return out;
+}
+function stepMissing(si){return stepFields(si).filter(f=>f.req&&!isAnswered(f));}
+function stepNext(){
+  const si=fill.step||0;
+  const missing=stepMissing(si);
+  if(missing.length){flagMissing(missing);return;}
+  fill.step=Math.min(si+1,FILL_SECTIONS.length-1);
+  fill.showErr=false;
+  nav('fu-fill');
+}
+function stepBack(){
+  fill.step=Math.max(0,(fill.step||0)-1);
+  fill.showErr=false;
+  nav('fu-fill');
+}
+/* mark what is missing, say how many, and take the user to the first one */
+function flagMissing(missing){
+  fill.showErr=true;renderFillBody();
+  const b=$('#reqBanner');
+  if(b){b.style.display='block';
+    const c=$('#reqCount');if(c)c.textContent=missing.length;
+    const pl=$('#reqPlural');if(pl)pl.textContent=missing.length===1?'':'s';
+    icons();}
+  const first=document.getElementById('ff_'+missing[0].id);
+  if(first)first.scrollIntoView({behavior:'smooth',block:'center'});
+  toast(missing.length+' required field'+(missing.length>1?'s':'')+' left','alert-circle');
+}
 /* One entry of a repeatable section is the same fields under suffixed ids, so
    “Full Name” in entry 2 answers to mname#2 and nothing collides. */
 function instF(f,n){
@@ -1662,19 +1714,22 @@ function isAnswered(f){
 }
 function missingRequired(){return activeFillFields().filter(f=>f.req&&!isAnswered(f));}
 function clearFieldErr(id){const el=document.getElementById('ff_'+id);if(el)el.classList.remove('err');const b=$('#reqBanner');if(b&&missingRequired().length===0)b.style.display='none';}
-function updateFillProgress(){var fields=activeFillFields();var done=fields.filter(isAnswered).length;var pct=fields.length?Math.round(done/fields.length*100):0;var p=$('#fillProg');if(p)p.style.width=pct+'%';var c=$('#fillCount');if(c)c.textContent=done+'/'+fields.length+' completed';updateRecChip();}
+function updateFillProgress(){var p=$('#fillProg');if(p){var fields=activeFillFields();var done=fields.filter(isAnswered).length;p.style.width=(fields.length?Math.round(done/fields.length*100):0)+'%';}
+  var sb=$('#stepbar');if(sb)sb.innerHTML=stepSegments(Math.min(fill.step||0,FILL_SECTIONS.length-1));
+  updateRecChip();}
 function renderSection(sec){return sec.fields.map(f=>renderField(f)).join('');}
-function renderAllSections(){
-  return FILL_SECTIONS.map(function(sec,i){
+function renderAllSections(){return FILL_SECTIONS.map(renderOneSection).join('');}
+function renderOneSection(sec,i){
     const rep=!!sec.repeat;
     const c=rep?repCount(i):0;
+    const total=FILL_SECTIONS.length;
     return `<div class="card fillsec">
     <div class="fillsec-head flex ac g10"><span class="secnum">${i+1}</span><span class="catsq" style="width:38px;height:38px;background:var(--blue-bg);color:var(--blue)"><i data-lucide="${sec.icon}"></i></span>
       <div class="grow"><div class="flex ac g6 wrap"><div class="sec-title" style="font-size:16px">${sec.title}</div>
         ${rep?'<span class="ftag">REPEATABLE</span>':''}</div>
-        <div class="muted small">${rep?c+' '+(c===1?sec.repeat.label.toLowerCase():sec.repeat.label.toLowerCase()+'s')+' · '+sec.fields.length+' fields each':sec.fields.length+' field'+(sec.fields.length>1?'s':'')}</div></div></div>
+        <div class="muted small">Step ${i+1} of ${total} · ${rep?c+' '+(c===1?sec.repeat.label.toLowerCase():sec.repeat.label.toLowerCase()+'s')+', '+sec.fields.length+' fields each':sec.fields.length+' field'+(sec.fields.length>1?'s':'')}</div></div></div>
     ${rep?renderRepeatSection(sec,i,c):renderSection(sec)}
-  </div>`;}).join('');
+  </div>`;
 }
 function renderRepeatSection(sec,si,c){
   let out='';
@@ -1693,7 +1748,7 @@ function renderRepeatSection(sec,si,c){
   <div class="hint" style="text-align:center;margin-top:8px">Add as many as the household needs — the form started with ${sec.repeat.count}.</div>`;
   return out;
 }
-function renderFillBody(){var el=$('#fillbody');if(el){el.innerHTML=renderAllSections();icons();bindSignatures();updateFillProgress();}}
+function renderFillBody(){var el=$('#fillbody');if(el){el.innerHTML=renderStepBody(Math.min(fill.step||0,FILL_SECTIONS.length-1));icons();bindSignatures();updateFillProgress();}}
 function renderField(f){
   const a=fill.answers[f.id];
   let fu='';
