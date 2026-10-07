@@ -1811,8 +1811,7 @@ function renderRepeatSection(sec,si,c){
     </div>`;
   }
   out+=`<button class="btn btn-ghost btn-block mt4" style="border-style:dashed" onclick="addRep(${si})">
-    <i data-lucide="plus"></i> Add another ${sec.repeat.label.toLowerCase()}</button>
-  <div class="hint" style="text-align:center;margin-top:8px">Add as many as the household needs — the form started with ${sec.repeat.count}.</div>`;
+    <i data-lucide="plus"></i> Add another ${sec.repeat.label.toLowerCase()}</button>`;
   return out;
 }
 function renderFillBody(){var el=$('#fillbody');if(el){el.innerHTML=renderStepBody(Math.min(fill.step||0,FILL_SECTIONS.length-1));icons();bindSignatures();updateFillProgress();}}
