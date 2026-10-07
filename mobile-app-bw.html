@@ -1073,8 +1073,10 @@ function setDashTab(t){dashTab=t;nav('ad-dash');}
 /* ---- FIELD: HOME ---- */
 SCREENS['fu-home']=()=>{
   statusLight(false);
-  /* the forms assigned to this field user, most active first */
-  const mine=[...FORMS].sort((a,b)=>subsFor(b.id).length-subsFor(a.id).length).slice(0,5);
+  /* bookmarked forms first, then the most active — published forms only */
+  const mine=[...FORMS].filter(f=>f.s==='active')
+    .sort((a,b)=>(starred[b.id]||0)-(starred[a.id]||0)||subsFor(b.id).length-subsFor(a.id).length)
+    .slice(0,5);
   return `
   <div class="hero">
     <div class="flex between ac">
@@ -1251,7 +1253,7 @@ function formsScreen(isField){
   statusLight(false);
   const cur=formsTab[isField?'field':'admin'];
   const list=isField?FORMS.filter(formMatches):FORMS.filter(f=>cur==='All'||f.s===cur.toLowerCase());
-  list.sort((a,b)=>(starred[b.id]||0)-(starred[a.id]||0));
+  list.sort((a,b)=>(starred[b.id]||0)-(starred[a.id]||0)||subsFor(b.id).length-subsFor(a.id).length);
   return `
   <div class="phead-wrap">
     <div class="phead"><h1 class="ptitle">${isField?'My Forms':'Forms'}</h1>${isField?'':`<button class="btn btn-primary btn-sm" onclick="openBuilder('new')"><i data-lucide="plus"></i> New</button>`}</div>
@@ -1313,7 +1315,11 @@ function formCard(f,isField){
     <div class="flex ac g6 mt8"><span style="color:${c.c};display:flex"><i data-lucide="${c.ic}" style="width:15px;height:15px"></i></span><span class="muted small">${c.label} · ${isField?recSummary(f.id):f.r+' submissions · '+f.mod}</span></div>
     ${cta}</div>`;
 }
-function toggleStar(id,el){starred[id]=starred[id]?0:1;toast(starred[id]?'Pinned to top':'Unpinned');nav(ROLE==='field'?'fu-forms':'ad-forms');}
+function toggleStar(id,el){
+  starred[id]=starred[id]?0:1;
+  toast(starred[id]?'Pinned to top':'Unpinned',starred[id]?'bookmark':'bookmark-x');
+  nav(curScreen,curOpts);   /* re-sort where the user actually is */
+}
 function emptyState(t,s,ic){return `<div class="card p" style="text-align:center;padding:44px 20px;margin-top:8px"><div style="width:64px;height:64px;border-radius:50%;background:var(--blue-bg);display:grid;place-items:center;margin:0 auto;color:var(--blue)"><i data-lucide="${ic||'file-search'}"></i></div><div class="sec-title mt14">${t}</div><div class="muted mt6">${s}</div></div>`;}
 
 /* ---- FIELD: FORM DETAIL ---- */
