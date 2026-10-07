@@ -551,26 +551,30 @@ const PALETTE = [
 const PICON = {}; PALETTE.forEach(g=>g[1].forEach(it=>PICON[it[0]]=it[1]));
 /* Fill flow grouped by Section (a field type itself), covering ALL portal field
    types, with nested follow-up fields that appear when an option is selected. */
+/* Nothing in this form is mandatory at the moment: every field carries
+   req:false, so no step gates and the record submits whatever is filled in.
+   The validation itself is untouched — flipping a field back to req:true
+   restores the asterisk, the inline message and the step check. */
 const FILL_SECTIONS = [
   { title:'Basic Information', icon:'clipboard-list', fields:[
-    {id:'name', label:'Village/Community Name', type:'Short Text', req:true, ph:'Enter village name', rec:true},
+    {id:'name', label:'Village/Community Name', type:'Short Text', req:false, ph:'Enter village name', rec:true},
     {id:'notes', label:'General Observations', type:'Long Text', req:false, ph:'Describe the site condition...'},
-    {id:'depth', label:'Water Table Depth (m)', type:'Number', req:true, ph:'Enter depth'},
-    {id:'email', label:'Reporter Email', type:'Email', req:true, ph:'name@indiaobs.org'},
+    {id:'depth', label:'Water Table Depth (m)', type:'Number', req:false, ph:'Enter depth'},
+    {id:'email', label:'Reporter Email', type:'Email', req:false, ph:'name@indiaobs.org'},
     {id:'phone', label:'Contact Number', type:'Phone', req:false, ph:'+91 00000 00000'},
   ]},
   { title:'Dates & Measurements', icon:'calendar-clock', fields:[
-    {id:'adate', label:'Assessment Date', type:'Date', req:true},
+    {id:'adate', label:'Assessment Date', type:'Date', req:false},
     {id:'stime', label:'Sample Collection Time', type:'Date & Time', req:false},
     {id:'veg', label:'Vegetation Cover', type:'Percentage', req:false, ph:'0 – 100'},
   ]},
   { title:'Assessment', icon:'list-checks', fields:[
-    {id:'source', label:'Water Source Type', type:'Dropdown', req:true, opts:['Borewell','Open Well','River / Stream','Pond / Lake','Other'],
+    {id:'source', label:'Water Source Type', type:'Dropdown', req:false, opts:['Borewell','Open Well','River / Stream','Pond / Lake','Other'],
       followups:{
         'Borewell':[{id:'bdepth', label:'Borewell Depth (ft)', type:'Number', ph:'Enter depth in feet'}],
         'Other':[{id:'osrc', label:'Please specify the source', type:'Short Text', ph:'Describe the water source'}],
       }},
-    {id:'quality', label:'Water Quality Observation', type:'Multiple Choice', req:true, opts:['Clear','Turbid','Coloured','Odour present'],
+    {id:'quality', label:'Water Quality Observation', type:'Multiple Choice', req:false, opts:['Clear','Turbid','Coloured','Odour present'],
       followups:{
         'Turbid':[{id:'turb', label:'Turbidity Severity', type:'Dropdown', opts:['Low','Medium','High']}],
         'Coloured':[{id:'colr', label:'Describe the colour', type:'Short Text', ph:'e.g. brownish, greenish'}],
@@ -589,19 +593,19 @@ const FILL_SECTIONS = [
      author sets how many copies appear to begin with; the field user adds more
      when the household is larger than expected. */
   { title:'Household Members', icon:'users', repeat:{count:3,min:1,max:25,label:'Member'}, fields:[
-    {id:'mname', label:'Full Name', type:'Short Text', req:true, ph:'Enter name'},
-    {id:'mage', label:'Age', type:'Number', req:true, ph:'Years'},
-    {id:'mgender', label:'Gender', type:'Dropdown', req:true, opts:['Female','Male','Other','Prefer not to say']},
+    {id:'mname', label:'Full Name', type:'Short Text', req:false, ph:'Enter name'},
+    {id:'mage', label:'Age', type:'Number', req:false, ph:'Years'},
+    {id:'mgender', label:'Gender', type:'Dropdown', req:false, opts:['Female','Male','Other','Prefer not to say']},
     {id:'mphone', label:'Contact Number', type:'Phone', req:false, ph:'+91 00000 00000'},
     {id:'mrel', label:'Relationship to Head', type:'Short Text', req:false, ph:'e.g. daughter'},
   ]},
   { title:'Media & Evidence', icon:'image', fields:[
     {id:'photo', label:'Site Photo', type:'Photo Upload', req:false},
     {id:'doc', label:'Supporting Document', type:'File Upload', req:false},
-    {id:'sign', label:'Surveyor Signature', type:'Signature', req:true},
+    {id:'sign', label:'Surveyor Signature', type:'Signature', req:false},
   ]},
   { title:'Location & References', icon:'map-pin', fields:[
-    {id:'loc', label:'GPS Location', type:'Location', req:true},
+    {id:'loc', label:'GPS Location', type:'Location', req:false},
     {id:'area', label:'Site Boundary', type:'Map Data', req:false},
     {id:'url', label:'Reference Link', type:'Website URL', req:false, ph:'https://'},
     {id:'rating', label:'Overall Site Rating', type:'Rating', req:false},
