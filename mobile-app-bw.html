@@ -1791,12 +1791,10 @@ function renderAllSections(){return FILL_SECTIONS.map(renderOneSection).join('')
 function renderOneSection(sec,i){
     const rep=!!sec.repeat;
     const c=rep?repCount(i):0;
-    const total=FILL_SECTIONS.length;
     return `<div class="card fillsec">
-    <div class="fillsec-head flex ac g10"><span class="secnum">${i+1}</span><span class="catsq" style="width:38px;height:38px;background:var(--blue-bg);color:var(--blue)"><i data-lucide="${sec.icon}"></i></span>
-      <div class="grow"><div class="flex ac g6 wrap"><div class="sec-title" style="font-size:16px">${sec.title}</div>
-        ${rep?'<span class="ftag">REPEATABLE</span>':''}</div>
-        <div class="muted small">Step ${i+1} of ${total} · ${rep?c+' '+(c===1?sec.repeat.label.toLowerCase():sec.repeat.label.toLowerCase()+'s')+', '+sec.fields.length+' fields each':sec.fields.length+' field'+(sec.fields.length>1?'s':'')}</div></div></div>
+    <div class="fillsec-head flex ac g10"><span class="secnum">${i+1}</span>
+      <div class="grow flex ac g6 wrap"><div class="sec-title" style="font-size:16px">${sec.title}</div>
+        ${rep?'<span class="ftag">REPEATABLE</span>':''}</div></div>
     ${rep?renderRepeatSection(sec,i,c):renderSection(sec)}
   </div>`;
 }
