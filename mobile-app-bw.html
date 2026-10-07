@@ -2473,7 +2473,6 @@ SCREENS['fu-progdetail']=({name})=>{
   const c=CAT[p.cat];const fs=formsInProgram(p.name);
   const all=allFormsInProgram(p.name);
   const subsTotal=all.reduce((n,f)=>n+f.r,0);
-  const inds=[...new Set(fs.flatMap(f=>f.ind))];
   return `
   <div class="phead-wrap">
     <div class="phead"><span class="pback" onclick="nav('fu-programs')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">${p.name}</h1>${statusBadge(p.s)}</div>
@@ -2499,13 +2498,6 @@ SCREENS['fu-progdetail']=({name})=>{
         <span style="flex:0 0 auto">${recBadge(f.id)}</span>
       </div></div>`).join('')}
 
-    ${inds.length?`<div class="pgroup" style="margin-top:18px">What this programme measures</div>
-      <div class="card p">${inds.map(i=>`<div class="flex ac g8" style="padding:9px 0"><span style="color:var(--green);display:flex"><i data-lucide="trending-up"></i></span>
-        <span style="font-size:14px;font-weight:600;color:var(--heading)">${i}</span></div>`).join('')}</div>`:''}
-
-    <div class="card p mt14">
-      ${infoRow('Lead organisation',p.org,'building-2')}${infoRow('Status',p.s==='paused'?'Paused':'Active','activity')}${infoRow('Runs until',p.to,'calendar')}
-    </div>
   </div>`;
 };
 
