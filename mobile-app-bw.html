@@ -1312,18 +1312,16 @@ function formCard(f,isField){
       </div>`;
   const onopen=isField?`nav('fu-detail',{id:${f.id}})`:`nav('ad-preview',{id:${f.id}})`;
   return `<div class="card p tap mt12" onclick="${onopen}">
-    <div class="flex g12" style="align-items:flex-start">
-      <span class="catsq" style="background:${c.bg};color:${c.c}"><i data-lucide="${c.ic}"></i></span>
-      <div class="grow">
-        <div class="flex between g8" style="align-items:flex-start;margin-bottom:7px">
-          <span class="tt grow" style="line-height:1.3">${f.n}</span>
-          <span onclick="event.stopPropagation();toggleStar(${f.id},this)" style="color:${starred[f.id]?'var(--pending)':'var(--metric-muted)'};display:flex;flex:0 0 auto"><i data-lucide="bookmark"${starred[f.id]?' fill="currentColor"':''}></i></span>
-        </div>
+    <div class="flex between g10" style="align-items:flex-start">
+      <span class="tt grow" style="line-height:1.3">${f.n}</span>
+      <span class="flex ac g8" style="flex:0 0 auto">
         ${isField?recBadge(f.id):statusBadge(f.s)}
-        <div class="muted mt8">${f.d}</div>
-        <div class="flex ac g6 mt8"><span style="color:${c.c};display:flex"><i data-lucide="${c.ic}" style="width:15px;height:15px"></i></span><span class="muted small">${c.label} · ${isField?recSummary(f.id):f.r+' submissions · '+f.mod}</span></div>
-      </div>
-    </div>${cta}</div>`;
+        <span onclick="event.stopPropagation();toggleStar(${f.id},this)" style="color:${starred[f.id]?'var(--heading)':'var(--metric-muted)'};display:flex"><i data-lucide="bookmark"${starred[f.id]?' fill="currentColor"':''}></i></span>
+      </span>
+    </div>
+    <div class="muted mt8">${f.d}</div>
+    <div class="flex ac g6 mt8"><span style="color:${c.c};display:flex"><i data-lucide="${c.ic}" style="width:15px;height:15px"></i></span><span class="muted small">${c.label} · ${isField?recSummary(f.id):f.r+' submissions · '+f.mod}</span></div>
+    ${cta}</div>`;
 }
 function toggleStar(id,el){starred[id]=starred[id]?0:1;toast(starred[id]?'Pinned to top':'Unpinned');nav(ROLE==='field'?'fu-forms':'ad-forms');}
 function emptyState(t,s,ic){return `<div class="card p" style="text-align:center;padding:44px 20px;margin-top:8px"><div style="width:64px;height:64px;border-radius:50%;background:var(--blue-bg);display:grid;place-items:center;margin:0 auto;color:var(--blue)"><i data-lucide="${ic||'file-search'}"></i></div><div class="sec-title mt14">${t}</div><div class="muted mt6">${s}</div></div>`;}
