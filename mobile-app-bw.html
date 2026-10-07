@@ -2481,6 +2481,7 @@ SCREENS['fu-progdetail']=({name})=>{
     ${p.s==='paused'?`<div class="banner pend"><div class="t flex ac g8"><i data-lucide="pause"></i> Programme paused</div>
       <div class="muted mt6">No new records are expected while it is on hold. Anything you already saved stays safe and will still sync.</div></div>`:''}
     <div class="card p ${p.s==='paused'?'mt12':''}">
+      <div class="tt" style="font-size:17px;line-height:1.3;margin-bottom:6px">${p.name}</div>
       <div class="muted" style="font-size:13.5px;line-height:1.55">${p.desc}</div>
       <div class="muted small mt10 flex ac g6"><i data-lucide="calendar" style="width:13px;height:13px;flex:0 0 auto"></i>${p.from} – ${p.to}</div>
       <div class="muted small mt4 flex ac g6"><i data-lucide="user" style="width:13px;height:13px;flex:0 0 auto"></i>Created by ${p.by}</div>
