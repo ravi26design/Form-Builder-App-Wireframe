@@ -1986,10 +1986,6 @@ SCREENS['fu-sync']=()=>{
   <div class="phead-wrap">
     <div class="phead"><h1 class="ptitle">Offline Sync</h1></div>
   </div>
-  <div class="chiprow"><div class="chips">
-    <div class="chip ${onQueue?'sel':''}" onclick="setSyncTab('Waiting')">Waiting to sync${queued.length?' · '+queued.length:''}</div>
-    <div class="chip ${onQueue?'':'sel'}" onclick="setSyncTab('Drafts')">Drafts${drafts.length?' · '+drafts.length:''}</div>
-  </div></div>
   <div class="pad pb">
     <div class="flex g12">
       <div class="card p tap grow" style="${onQueue?'border-color:#111;border-width:1.5px':'border-color:#DEDEDE'};background:linear-gradient(135deg,#F2F2F2,#fff)" onclick="setSyncTab('Waiting')">
@@ -2004,6 +2000,11 @@ SCREENS['fu-sync']=()=>{
       </div>
     </div>
     <div class="flex between ac mt16"><div class="setrow" style="border:none;padding:0;cursor:default"><span>Auto-sync on Wi-Fi</span></div><div class="tgl ${autoSync?'on':''}" onclick="autoSync=!autoSync;nav('fu-sync');toast(autoSync?'Auto-sync on':'Auto-sync off')"></div></div>
+
+    <div class="chips mt16" style="padding-top:4px;border-top:1px solid var(--border2);padding-top:16px">
+      <div class="chip ${onQueue?'sel':''}" onclick="setSyncTab('Waiting')">Waiting to sync${queued.length?' · '+queued.length:''}</div>
+      <div class="chip ${onQueue?'':'sel'}" onclick="setSyncTab('Drafts')">Drafts${drafts.length?' · '+drafts.length:''}</div>
+    </div>
 
     ${onQueue?`
     ${queued.length?queued.map(r=>`<div class="card p mt12">
