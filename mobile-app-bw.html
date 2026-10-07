@@ -2076,7 +2076,6 @@ function profileScreen(isField){
                  :{n:'Jay',r:'Org Admin',in:'JA',org:'India Observatory',area:'All programmes'};
   const drafts=MYSUBS.filter(r=>r.s==='draft').length;
   const queued=MYSUBS.filter(r=>r.s==='queued').length;
-  const unread=NOTIFS.filter(n=>n.unread&&(!n.role||n.role===ROLE)&&notifAllowed(n)).length;
   return `
   <div class="hero" style="text-align:center;padding-bottom:26px">
     <div style="position:relative;width:74px;margin:0 auto 10px">
@@ -2092,7 +2091,6 @@ function profileScreen(isField){
     <div class="card p">
       ${setRow('user','Account Settings',"nav('ad-account')")}
       ${setRow('lock','Change Password',"nav('changepw')")}
-      ${setRow('bell','Notifications',"nav('fu-notif')",unread?`<span class="badge b-s" style="height:22px"><span class="dot"></span>${unread}</span>`:'<span class="chev"><i data-lucide="chevron-right"></i></span>')}
       ${setRow('sliders-horizontal','Notification Settings',"nav('notif-settings')")}
       ${setRow('languages','Language',"nav('profile-language')",`<span class="muted small">${appLang.split(' ')[0]}</span>`)}
     </div>
