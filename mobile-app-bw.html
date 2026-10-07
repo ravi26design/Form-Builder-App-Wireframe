@@ -294,7 +294,7 @@ h1.title{font-size:23px;font-weight:800;color:var(--heading);letter-spacing:-.3p
 .b-blue .dot{background:#111}
 
 /* --- Notification dot has to read on the near-black hero --- */
-.notifdot{background:#fff;border:2px solid #111}
+.notifdot{background:#111;border:2px solid #fff}
 .menudot{background:#111}
 
 /* --- Buttons: primary solid black, secondary mid-grey, outlines hairline --- */
@@ -319,7 +319,12 @@ h1.title{font-size:23px;font-weight:800;color:var(--heading);letter-spacing:-.3p
 .choice.on{border-color:#111;border-width:1.5px;background:#F4F4F4;box-shadow:none}
 
 /* --- Hero: flat ink block instead of a brand gradient --- */
-.hero{background:#111}
+/* The hero sits on white like the rest of the headers; the greeting carries
+   the hierarchy through weight rather than a block of colour. */
+.hero{background:#fff;color:var(--heading);border-bottom:1px solid var(--border);
+  border-bottom-left-radius:0;border-bottom-right-radius:0}
+.hero .h-sub{color:var(--muted)}
+.hero .h-name{color:var(--heading)}
 .statusbar.light{background:#111}
 .mini{background:rgba(255,255,255,.10);border-color:rgba(255,255,255,.26)}
 
@@ -376,6 +381,12 @@ h1.title{font-size:23px;font-weight:800;color:var(--heading);letter-spacing:-.3p
 .phead .lnk{flex:0 0 auto;white-space:nowrap}
 .chiprow{padding:14px 16px 0}
 .chiprow .chips{padding-bottom:2px}
+
+/* --- Filter button, sized to sit beside the search field --- */
+.filterbtn{flex:0 0 auto;width:48px;padding:0;position:relative;height:auto;min-height:46px}
+.filterbtn svg{width:19px;height:19px}
+.fcount{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;
+  background:#111;color:#fff;font-size:10.5px;font-weight:800;display:grid;place-items:center;border:2px solid #fff}
 
 /* --- Step indicator --- */
 .stepbar{display:flex;gap:5px;margin-top:14px}
@@ -1067,16 +1078,16 @@ function setDashTab(t){dashTab=t;nav('ad-dash');}
 
 /* ---- FIELD: HOME ---- */
 SCREENS['fu-home']=()=>{
-  statusLight(true);
+  statusLight(false);
   /* the forms assigned to this field user, most active first */
   const mine=[...FORMS].sort((a,b)=>subsFor(b.id).length-subsFor(a.id).length).slice(0,5);
   return `
   <div class="hero">
     <div class="flex between ac">
       <div><div class="h-sub">Welcome back,</div><div class="h-name">Rajesh Kumar</div></div>
-      <div class="flex ac" style="color:#fff"><span onclick="nav('fu-notif')" style="position:relative;cursor:pointer;display:flex"><i data-lucide="bell"></i>${NOTIFS.filter(n=>n.unread&&(!n.role||n.role===ROLE)&&notifAllowed(n)).length?'<span class="notifdot"></span>':''}</span></div>
+      <div class="flex ac"><span onclick="nav('fu-notif')" style="position:relative;cursor:pointer;display:flex"><i data-lucide="bell"></i>${NOTIFS.filter(n=>n.unread&&(!n.role||n.role===ROLE)&&notifAllowed(n)).length?'<span class="notifdot"></span>':''}</span></div>
     </div>
-    <div class="muted mt4" style="color:#D8D8D8">Here's where your data collection stands.</div>
+    <div class="muted mt4">Here's where your data collection stands.</div>
   </div>
   <div class="pad pb">
     ${dashStatCard(true)}
@@ -1184,20 +1195,22 @@ const FORM_STATUSES=[['','Any status'],['none','Not started'],['draft','Has draf
 const SUB_STATUSES=[['','Any status'],['draft','Draft'],['queued','Waiting to sync'],['pending','Pending'],['verified','Verified'],['completed','Completed']];
 function fieldPrograms(){return [...new Set(FORMS.filter(f=>f.s==='active').map(f=>f.prog))];}
 function filterCount(o){return Object.values(o).filter(Boolean).length;}
-/* the button that opens the sheet, badged with how many filters are on */
-function filterBar(which){
+/* The filter control sits beside the search, badged with how many filters are
+   on; what is actually applied shows as removable chips under the header. */
+function filterBtn(which){
+  const n=filterCount(which==='forms'?formFilter:subFilter);
+  return `<button class="btn ${n?'btn-outline':'btn-ghost'} filterbtn" onclick="openFilters('${which}')">
+    <i data-lucide="sliders-horizontal"></i>${n?`<span class="fcount">${n}</span>`:''}</button>`;
+}
+function filterChips(which){
   const o=which==='forms'?formFilter:subFilter;
-  const n=filterCount(o);
+  if(!filterCount(o))return '';
   const chip=(label,key)=>`<div class="chip sel" onclick="clearFilter('${which}','${key}')">${label} <i data-lucide="x" style="width:13px;height:13px;margin-left:6px"></i></div>`;
   const chips=[];
   if(o.prog)chips.push(chip(o.prog,'prog'));
   if(o.form)chips.push(chip((FORMS.find(f=>f.id===+o.form)||{}).n||'Form','form'));
   if(o.status)chips.push(chip(statusLabel(which,o.status),'status'));
-  return `<div class="flex g8 mt12" style="align-items:center">
-      <button class="btn ${n?'btn-outline':'btn-ghost'} btn-sm" onclick="openFilters('${which}')" style="flex:0 0 auto">
-        <i data-lucide="sliders-horizontal"></i> Filters${n?' · '+n:''}</button>
-      <div class="chips grow">${chips.join('')}${n?`<div class="chip" onclick="clearFilter('${which}','all')">Clear all</div>`:''}</div>
-    </div>`;
+  return `<div class="chiprow"><div class="chips">${chips.join('')}<div class="chip" onclick="clearFilter('${which}','all')">Clear all</div></div></div>`;
 }
 function statusLabel(which,v){
   const list=which==='forms'?FORM_STATUSES:SUB_STATUSES;
@@ -1247,10 +1260,13 @@ function formsScreen(isField){
   list.sort((a,b)=>(starred[b.id]||0)-(starred[a.id]||0));
   return `
   <div class="phead-wrap">
-    <div class="phead"><h1 class="ptitle">${isField?'My Forms':'Forms'}</h1><button class="btn btn-primary btn-sm" onclick="openBuilder('new')"><i data-lucide="plus"></i> New</button></div>
-    <div class="mt12"><div class="input mt12" style="background:#fff"><span class="lead"><i data-lucide="search"></i></span><input placeholder="Search forms..." oninput="filterForms(this.value)"></div></div>
+    <div class="phead"><h1 class="ptitle">${isField?'My Forms':'Forms'}</h1>${isField?'':`<button class="btn btn-primary btn-sm" onclick="openBuilder('new')"><i data-lucide="plus"></i> New</button>`}</div>
+    <div class="flex g8 mt12" style="align-items:stretch">
+      <div class="input grow" style="background:#fff"><span class="lead"><i data-lucide="search"></i></span><input placeholder="Search forms..." oninput="filterForms(this.value)"></div>
+      ${isField?filterBtn('forms'):''}
+    </div>
   </div>
-  <div class="pad" style="padding-bottom:8px">${isField?filterBar('forms'):`<div class="chips">${['All','Active','Draft'].map(t=>`<div class="chip ${t===cur?'sel':''}" onclick="setFormsTab('admin','${t}')">${t}</div>`).join('')}</div>`}</div>
+  ${isField?filterChips('forms'):`<div class="chiprow"><div class="chips">${['All','Active','Draft'].map(t=>`<div class="chip ${t===cur?'sel':''}" onclick="setFormsTab('admin','${t}')">${t}</div>`).join('')}</div></div>`}
   <div class="pad pb" id="formsList" style="padding-top:4px">${list.map(f=>formCard(f,isField)).join('')||emptyState('No forms found','Nothing matches your filters.')}</div>`;
 }
 function setFormsTab(k,t){formsTab[k]=t;nav(k==='field'?'fu-forms':'ad-forms');}
@@ -1389,10 +1405,14 @@ SCREENS['fu-subs']=()=>{
   return `
   <div class="phead-wrap">
     <div class="phead"><h1 class="ptitle">My Records</h1></div>
-    <div class="mt12"><div class="input mt12" style="background:#fff"><span class="lead"><i data-lucide="search"></i></span>
-      <input placeholder="Search ID, form or location..." value="${esc(mySubQ)}" oninput="mySubSearch(this.value)">
-      ${mySubQ?`<span class="trail" onclick="mySubQ='';nav('fu-subs')"><i data-lucide="x"></i></span>`:''}</div></div>
+    <div class="flex g8 mt12" style="align-items:stretch">
+      <div class="input grow" style="background:#fff"><span class="lead"><i data-lucide="search"></i></span>
+        <input placeholder="Search ID, form or location..." value="${esc(mySubQ)}" oninput="mySubSearch(this.value)">
+        ${mySubQ?`<span class="trail" onclick="mySubQ='';nav('fu-subs')"><i data-lucide="x"></i></span>`:''}</div>
+      ${filterBtn('subs')}
+    </div>
   </div>
+  ${filterChips('subs')}
   <div class="pad pb" id="mySubList">${mySubListHtml()}</div>`;
 };
 function mySubSearch(v){mySubQ=v||'';const el=$('#mySubList');if(el){el.innerHTML=mySubListHtml();icons();}}
@@ -2008,7 +2028,7 @@ const LANGS=['English','हिन्दी (Hindi)','ಕನ್ನಡ (Kannada)',
 SCREENS['fu-profile']=()=>profileScreen(true);
 SCREENS['ad-profile']=()=>profileScreen(false);
 function profileScreen(isField){
-  statusLight(true);
+  statusLight(false);
   const u=isField?{n:'Rajesh Kumar',r:'Field User',in:'RK',org:'India Observatory',area:'Karnataka District'}
                  :{n:'Jay',r:'Org Admin',in:'JA',org:'India Observatory',area:'All programmes'};
   const drafts=MYSUBS.filter(r=>r.s==='draft').length;
@@ -2017,12 +2037,12 @@ function profileScreen(isField){
   return `
   <div class="hero" style="text-align:center;padding-bottom:26px">
     <div style="position:relative;width:74px;margin:0 auto 10px">
-      <div style="width:74px;height:74px;border-radius:50%;background:rgba(255,255,255,.2);display:grid;place-items:center;font-weight:800;font-size:25px;color:#fff">${u.in}</div>
-      <span onclick="nav('ad-account')" style="position:absolute;right:-2px;bottom:-2px;width:26px;height:26px;border-radius:50%;background:#fff;color:#111;display:grid;place-items:center;cursor:pointer;border:2px solid #111"><i data-lucide="pencil" style="width:12px;height:12px"></i></span>
+      <div style="width:74px;height:74px;border-radius:50%;background:#111;display:grid;place-items:center;font-weight:800;font-size:25px;color:#fff">${u.in}</div>
+      <span onclick="nav('ad-account')" style="position:absolute;right:-2px;bottom:-2px;width:26px;height:26px;border-radius:50%;background:#fff;color:#111;display:grid;place-items:center;cursor:pointer;border:1.5px solid var(--border);box-shadow:var(--sh-card)"><i data-lucide="pencil" style="width:12px;height:12px"></i></span>
     </div>
     <div style="font-size:19px;font-weight:800">${u.n}</div>
-    <div style="font-size:13px;color:#D8D8D8">${u.r} · ${u.org}</div>
-    <span class="badge mt10" style="background:rgba(255,255,255,.2);color:#fff"><i data-lucide="map-pin" style="width:13px;height:13px"></i> ${u.area}</span>
+    <div class="muted" style="font-size:13px">${u.r} · ${u.org}</div>
+    <span class="badge b-blue mt10"><i data-lucide="map-pin" style="width:13px;height:13px"></i> ${u.area}</span>
   </div>
   <div class="pad pb">
     <div class="pgroup" style="margin-top:4px">Account</div>
@@ -2213,13 +2233,13 @@ SCREENS['profile-about']=()=>{
 
 /* ---- ADMIN: DASHBOARD ---- */
 SCREENS['ad-dash']=()=>{
-  statusLight(true);
+  statusLight(false);
   return `
   <div class="hero">
     <div class="flex between ac"><div><div class="h-sub">Welcome back,</div><div class="h-name">Arun <span class="emj">👋</span></div></div>
-      <div class="flex ac g12" style="color:#fff"><span onclick="nav('fu-notif')" style="position:relative;cursor:pointer;display:flex"><i data-lucide="bell"></i>${NOTIFS.filter(n=>n.unread&&(!n.role||n.role===ROLE)&&notifAllowed(n)).length?'<span class="notifdot"></span>':''}</span>
-        <div onclick="nav('ad-profile')" style="width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.2);display:grid;place-items:center;font-weight:800;font-size:14px;cursor:pointer">JA</div></div></div>
-    <div class="muted mt4" style="color:#D8D8D8">Here's what's happening with your data collection.</div>
+      <div class="flex ac g12"><span onclick="nav('fu-notif')" style="position:relative;cursor:pointer;display:flex"><i data-lucide="bell"></i>${NOTIFS.filter(n=>n.unread&&(!n.role||n.role===ROLE)&&notifAllowed(n)).length?'<span class="notifdot"></span>':''}</span>
+        <div onclick="nav('ad-profile')" style="width:38px;height:38px;border-radius:50%;background:#111;color:#fff;display:grid;place-items:center;font-weight:800;font-size:14px;cursor:pointer">JA</div></div></div>
+    <div class="muted mt4">Here's what's happening with your data collection.</div>
   </div>
   <div class="pad pb">
     ${dashStatCard(false)}
