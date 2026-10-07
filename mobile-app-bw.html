@@ -755,6 +755,7 @@ function nav(id,opts){
   vp().querySelector('#scr').scrollTop=0;
   renderNav();
   icons();
+  bindSignatures();          /* the pad is dead until its handlers are attached */
   rememberScreen(id,opts);
 }
 let curOpts={};
@@ -1890,7 +1891,11 @@ function bindSignatures(){
     const cur=fill.answers[id];
     if(cur&&cur.data){const img=new Image();img.onload=()=>ctx.drawImage(img,0,0,w,h);img.src=cur.data;}
     let drawing=false,last=null,dirty=false;
-    const pt=e=>{const r=cv.getBoundingClientRect();const t=e.touches?e.touches[0]:e;return{x:t.clientX-r.left,y:t.clientY-r.top};};
+    const pt=e=>{
+      const r=cv.getBoundingClientRect();const t=e.touches?e.touches[0]:e;
+      const k=r.width?((cv.clientWidth||r.width)/r.width):1;   /* undo the device scale */
+      return{x:(t.clientX-r.left)*k,y:(t.clientY-r.top)*k};
+    };
     const start=e=>{e.preventDefault();drawing=true;last=pt(e);const hint=document.getElementById('sigo_'+id);if(hint)hint.style.display='none';};
     const move=e=>{if(!drawing)return;e.preventDefault();const p=pt(e);ctx.beginPath();ctx.moveTo(last.x,last.y);ctx.lineTo(p.x,p.y);ctx.stroke();last=p;dirty=true;};
     const end=()=>{if(!drawing)return;drawing=false;
@@ -2657,11 +2662,6 @@ SCREENS['changepw']=()=>{
     <div class="phead"><span class="pback" onclick="nav('fu-profile')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">Change Password</h1></div>
   </div>
   <div class="pad pb">
-    <div class="card p" style="text-align:center;padding:22px 16px;margin-bottom:14px">
-      <div style="width:56px;height:56px;border-radius:16px;background:var(--blue-bg);color:var(--blue);display:grid;place-items:center;margin:0 auto 10px"><i data-lucide="shield-check" style="width:26px;height:26px"></i></div>
-      <div class="sec-title" style="font-size:16px">Update your password</div>
-      <div class="muted small mt4">Choose a strong password you don't use elsewhere.</div>
-    </div>
     <div class="card p">
       <div class="field"><label>Current Password</label><div class="input"><span class="lead"><i data-lucide="lock"></i></span><input type="password" placeholder="Enter current password" oninput="cpwSet('cur',this.value)"><span class="trail" onclick="togglePw(this)"><i data-lucide="eye-off"></i></span></div></div>
       <div class="field"><label>New Password</label><div class="input"><span class="lead"><i data-lucide="lock-keyhole"></i></span><input type="password" placeholder="At least 8 characters" oninput="cpwSet('nw',this.value)"><span class="trail" onclick="togglePw(this)"><i data-lucide="eye-off"></i></span></div>
