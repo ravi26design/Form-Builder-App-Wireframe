@@ -1055,21 +1055,6 @@ function dashStatCard(isField){
   </div>`).join('')}</div>`;
 }
 
-/* name · status · program · responses · last modified — tapping opens the
-   form detail, which is the fillable view for a field user. */
-function dashFormCard(f,isField){
-  const n=isField?subsFor(f.id).length:f.r;
-  return `<div class="card p tap mt12" onclick="nav('${isField?'fu-detail':'ad-preview'}',{id:${f.id}})">
-    <div class="flex between g10" style="align-items:flex-start">
-      <div class="tt grow" style="line-height:1.3">${f.n}</div>
-      <span style="flex:0 0 auto">${isField?recBadge(f.id):statusBadge(f.s)}</span>
-    </div>
-    <div class="muted small mt8 flex ac g6"><i data-lucide="tag" style="width:13px;height:13px;flex:0 0 auto"></i>${f.prog}</div>
-    <div class="flex between ac g8 mt6">
-      <span class="muted small flex ac g6"><i data-lucide="inbox" style="width:13px;height:13px"></i>${n} ${isField?'submission':'response'}${n===1?'':'s'}</span>
-      <span class="muted small flex ac g6"><i data-lucide="clock" style="width:13px;height:13px"></i>${f.mod}</span>
-    </div></div>`;
-}
 let dashTab='All',dashQ='';
 function dashMatch(f,isField){
   if(dashTab==='Active')return f.s==='active';
@@ -1080,7 +1065,7 @@ function dashListHtml(isField){
   const q=dashQ.toLowerCase();
   const list=FORMS.filter(f=>dashMatch(f,isField)&&(f.n.toLowerCase().includes(q)||f.prog.toLowerCase().includes(q)))
     .sort((a,b)=>(starred[b.id]||0)-(starred[a.id]||0));
-  return list.length?list.map(f=>dashFormCard(f,isField)).join(''):emptyState('No forms found','Try a different search or filter.');
+  return list.length?list.map(f=>formCard(f,isField)).join(''):emptyState('No forms found','Try a different search or filter.');
 }
 function dashSearch(v){dashQ=v||'';const el=$('#dashList');if(el){el.innerHTML=dashListHtml(ROLE==='field');icons();}}
 function setDashTab(t){dashTab=t;nav('ad-dash');}
@@ -1101,7 +1086,7 @@ SCREENS['fu-home']=()=>{
   <div class="pad pb">
     ${dashStatCard(true)}
     <div class="flex between ac mt20"><div class="sec-title">Your Forms</div><span class="lnk" onclick="nav('fu-forms')">View All</span></div>
-    ${mine.map(f=>dashFormCard(f,true)).join('')}
+    ${mine.map(f=>formCard(f,true)).join('')}
     <div class="flex g12 mt14">
       <div class="card p tap grow" onclick="nav('fu-sync')"><div style="width:40px;height:40px;border-radius:11px;background:var(--blue-bg);display:grid;place-items:center;color:var(--blue)"><i data-lucide="cloud-upload"></i></div><div class="tt mt10" style="font-size:14px">Offline Sync</div><div class="muted small">Upload pending data</div></div>
       <div class="card p tap grow" onclick="nav('fu-programs')"><div style="width:40px;height:40px;border-radius:11px;background:var(--green-bg);display:grid;place-items:center;color:var(--green)"><i data-lucide="layers"></i></div><div class="tt mt10" style="font-size:14px">My Programmes</div><div class="muted small">${myPrograms().length} you collect for</div></div>
