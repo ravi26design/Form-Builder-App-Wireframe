@@ -382,6 +382,11 @@ h1.title{font-size:23px;font-weight:800;color:var(--heading);letter-spacing:-.3p
 .chiprow{padding:14px 16px 0}
 .chiprow .chips{padding-bottom:2px}
 
+/* --- Programme figures, three across like the portal --- */
+.progstats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.progstats .card{padding:12px}
+.progstats .sv{font-size:22px;font-weight:800;color:var(--metric);font-family:'DM Sans',sans-serif;line-height:1.1;margin-bottom:2px}
+
 /* --- The four record counts on a form page: Total = Submitted + Waiting + Draft --- */
 .substats{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .substats .card{padding:14px}
@@ -508,12 +513,12 @@ const FORMS = [
   {id:16,n:'Village Water Committee Meeting',d:'Attendance and resolutions from committee meetings',prog:'Watershed Management Initiative',cat:'water',ind:['Community Participation'],s:'active',r:64,by:'Priya Sharma',v:'v1.0',mod:'1 day ago',due:null,star:0},
 ];
 const PROGRAMS = [
-  {name:'Watershed Management Initiative',org:'India Observatory',cat:'water',forms:8,r:1240,ind:6,s:'active',until:'Mar 2027',desc:'Restoring water security across rural watersheds through community monitoring.'},
-  {name:'Biodiversity Program',org:'Wildlife Conservation Trust',cat:'bio',forms:6,r:980,ind:4,s:'active',until:'Dec 2026',desc:'Tracking species diversity and habitat health across protected zones.'},
-  {name:'Forest Health Monitoring',org:'Forest Research Institute',cat:'forest',forms:7,r:1520,ind:5,s:'active',until:'Jun 2027',desc:'Assessing canopy cover, regeneration and biomass in managed forests.'},
-  {name:'Land & Soil Management',org:'Rural Development Foundation',cat:'land',forms:4,r:610,ind:3,s:'active',until:'Mar 2027',desc:'Erosion control and sustainable land management practices.'},
-  {name:'Sustainable Livelihood Project',org:'Rural Development Foundation',cat:'live',forms:5,r:890,ind:4,s:'active',until:'Sep 2027',desc:'Household income, agriculture and community participation tracking.'},
-  {name:'Climate Adaptation Strategy',org:'India Observatory',cat:'climate',forms:4,r:340,ind:2,s:'paused',until:'on hold since Aug 2026',desc:'Rainfall and climate resilience data collection.'},
+  {name:'Watershed Management Initiative',org:'India Observatory',cat:'water',forms:8,r:1240,ind:6,s:'active',from:'15 Jan 2025',to:'31 Mar 2027',by:'Priya Sharma',desc:'Restoring water security across rural watersheds through community monitoring.'},
+  {name:'Biodiversity Program',org:'Wildlife Conservation Trust',cat:'bio',forms:6,r:980,ind:4,s:'active',from:'1 Apr 2025',to:'31 Dec 2026',by:'Arun Krishnan',desc:'Tracking species diversity and habitat health across protected zones.'},
+  {name:'Forest Health Monitoring',org:'Forest Research Institute',cat:'forest',forms:7,r:1520,ind:5,s:'active',from:'10 Jun 2024',to:'30 Jun 2027',by:'Arun Krishnan',desc:'Assessing canopy cover, regeneration and biomass in managed forests.'},
+  {name:'Land & Soil Management',org:'Rural Development Foundation',cat:'land',forms:4,r:610,ind:3,s:'active',from:'1 Aug 2025',to:'31 Mar 2027',by:'Lakshmi Iyer',desc:'Erosion control and sustainable land management practices.'},
+  {name:'Sustainable Livelihood Project',org:'Rural Development Foundation',cat:'live',forms:5,r:890,ind:4,s:'active',from:'15 Feb 2025',to:'30 Sep 2027',by:'Meera Patel',desc:'Household income, agriculture and community participation tracking.'},
+  {name:'Climate Adaptation Strategy',org:'India Observatory',cat:'climate',forms:4,r:340,ind:2,s:'paused',from:'1 Mar 2025',to:'on hold since Aug 2026',by:'Vikram Reddy',desc:'Rainfall and climate resilience data collection.'},
 ];
 const TEMPLATES = [
   {name:'Water Quality Survey',cat:'water',fields:12,uses:34,desc:'Standard water quality parameters with sampling location.'},
@@ -2433,6 +2438,7 @@ function myPrograms(){
   return PROGRAMS.filter(p=>FORMS.some(f=>f.prog===p.name&&f.s==='active'));
 }
 function formsInProgram(name){return FORMS.filter(f=>f.prog===name&&f.s==='active');}
+function allFormsInProgram(name){return FORMS.filter(f=>f.prog===name);}
 SCREENS['fu-programs']=()=>{
   statusLight(false);
   const list=myPrograms();
@@ -2453,8 +2459,7 @@ SCREENS['fu-programs']=()=>{
           </div>
         </div>
         <div class="pgroup" style="margin:14px 0 6px">Your forms in this programme</div>
-        ${fs.map(f=>`<div class="row" onclick="event.stopPropagation();nav('fu-detail',{id:${f.id}})" style="cursor:pointer;padding:10px 0">
-          <span class="catsq" style="width:34px;height:34px;background:var(--blue-bg);color:var(--blue)"><i data-lucide="file-text" style="width:17px;height:17px"></i></span>
+        ${fs.map(f=>`<div class="row" onclick="event.stopPropagation();nav('fu-detail',{id:${f.id}})" style="cursor:pointer;padding:11px 0">
           <div class="grow"><div class="tt" style="font-size:14px">${f.n}</div>
             <div class="muted small mt4">${recSummary(f.id)}</div></div>
           <span class="chev"><i data-lucide="chevron-right"></i></span></div>`).join('')}
@@ -2466,8 +2471,8 @@ SCREENS['fu-progdetail']=({name})=>{
   statusLight(false);
   const p=PROGRAMS.find(x=>x.name===name)||myPrograms()[0];
   const c=CAT[p.cat];const fs=formsInProgram(p.name);
-  const recs=fs.reduce((n,f)=>n+subsFor(f.id).length,0);
-  const places=new Set(fs.flatMap(f=>subsFor(f.id).map(r=>r.rec))).size;
+  const all=allFormsInProgram(p.name);
+  const subsTotal=all.reduce((n,f)=>n+f.r,0);
   const inds=[...new Set(fs.flatMap(f=>f.ind))];
   return `
   <div class="phead-wrap">
@@ -2477,29 +2482,30 @@ SCREENS['fu-progdetail']=({name})=>{
     ${p.s==='paused'?`<div class="banner pend"><div class="t flex ac g8"><i data-lucide="pause"></i> Programme paused</div>
       <div class="muted mt6">No new records are expected while it is on hold. Anything you already saved stays safe and will still sync.</div></div>`:''}
     <div class="card p ${p.s==='paused'?'mt12':''}">
-      <div class="flex ac g12"><span class="catsq" style="background:${c.bg};color:${c.c}"><i data-lucide="${c.ic}"></i></span>
-        <div class="grow"><div class="muted" style="font-size:13.5px;line-height:1.55">${p.desc}</div></div></div>
-      <div class="flex g12 mt14">
-        <div class="grow"><div style="font-size:24px;font-weight:800;color:var(--metric);font-family:'DM Sans'">${fs.length}</div><div class="muted small">forms assigned</div></div>
-        <div class="grow"><div style="font-size:24px;font-weight:800;color:var(--metric);font-family:'DM Sans'">${recs}</div><div class="muted small">your records</div></div>
-        <div class="grow"><div style="font-size:24px;font-weight:800;color:var(--metric);font-family:'DM Sans'">${places}</div><div class="muted small">locations</div></div>
-      </div>
+      <div class="muted" style="font-size:13.5px;line-height:1.55">${p.desc}</div>
+      <div class="muted small mt10 flex ac g6"><i data-lucide="calendar" style="width:13px;height:13px;flex:0 0 auto"></i>${p.from} – ${p.to}</div>
+      <div class="muted small mt4 flex ac g6"><i data-lucide="user" style="width:13px;height:13px;flex:0 0 auto"></i>Created by ${p.by}</div>
+    </div>
+    <div class="progstats mt12">
+      ${[[all.length,'Assigned Forms'],[subsTotal.toLocaleString(),'Total Submissions'],[fs.length,'Active Forms']]
+        .map(x=>`<div class="card p"><div class="sv">${x[0]}</div><div class="muted small">${x[1]}</div></div>`).join('')}
     </div>
 
     <div class="pgroup" style="margin-top:18px">Forms assigned to you</div>
-    <div class="card p">${fs.map(f=>`<div class="row" onclick="nav('fu-detail',{id:${f.id}})" style="cursor:pointer">
-      <span class="catsq" style="width:38px;height:38px;background:var(--blue-bg);color:var(--blue)"><i data-lucide="file-text"></i></span>
-      <div class="grow"><div class="tt" style="font-size:14px">${f.n}</div><div class="muted small mt4">${recSummary(f.id)}</div></div>
-      ${recBadge(f.id)}</div>`).join('')}</div>
+    ${fs.map(f=>`<div class="card p tap mt10" onclick="nav('fu-detail',{id:${f.id}})">
+      <div class="flex between g10" style="align-items:flex-start">
+        <div class="grow"><div class="tt" style="font-size:15px;line-height:1.3">${f.n}</div>
+          <div class="muted small mt6">${recSummary(f.id)}</div></div>
+        <span style="flex:0 0 auto">${recBadge(f.id)}</span>
+      </div></div>`).join('')}
 
     ${inds.length?`<div class="pgroup" style="margin-top:18px">What this programme measures</div>
       <div class="card p">${inds.map(i=>`<div class="flex ac g8" style="padding:9px 0"><span style="color:var(--green);display:flex"><i data-lucide="trending-up"></i></span>
         <span style="font-size:14px;font-weight:600;color:var(--heading)">${i}</span></div>`).join('')}</div>`:''}
 
     <div class="card p mt14">
-      ${infoRow('Lead organisation',p.org,'building-2')}${infoRow('Status',p.s==='paused'?'Paused':'Active','activity')}${infoRow('Runs until',p.until,'calendar')}
+      ${infoRow('Lead organisation',p.org,'building-2')}${infoRow('Status',p.s==='paused'?'Paused':'Active','activity')}${infoRow('Runs until',p.to,'calendar')}
     </div>
-    <div class="muted small mt14" style="text-align:center;line-height:1.6">Programme details, forms and assignments are managed on the web portal.<br>Ask an Org Admin if something looks wrong.</div>
   </div>`;
 };
 
