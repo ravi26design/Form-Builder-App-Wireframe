@@ -2641,9 +2641,6 @@ SCREENS['ad-account']=()=>{
       ${prefRow('email','Email Notifications','Get notified about new responses')}
       ${prefRow('push','Push Notifications','Alerts on your device')}
       ${prefRow('offline','Offline Mode','Cache forms for field work')}</div>
-    <div class="card p mt14"><div class="sec-title" style="font-size:15px;margin-bottom:4px">Security</div>
-      ${setRow('key','Change Password',"nav('changepw')")}
-      ${setRow('shield','Two-Factor Authentication',"toast('2FA setup')")}</div>
     <button class="btn btn-primary btn-block mt16" onclick="toast('Changes saved','check-circle-2')">Save Changes</button>
     <button class="btn btn-danger-g btn-block mt12" onclick="nav('login')"><i data-lucide="log-out"></i> Log Out</button>
   </div>`;
