@@ -2259,11 +2259,11 @@ SCREENS['ad-dash']=()=>{
 function openBuilder(mode,id){
   if(mode==='edit'){const f=FORMS.find(x=>x.id===id);builder={n:f.n,d:f.d,prog:f.prog,cat:f.cat,mode:'edit',id,fields:[
     {type:'Section',label:'General Information',section:true},
-    {type:'Short Text',label:'District',ph:'Enter district name',req:true,rec:true},
-    {type:'Dropdown',label:'Primary Category',ph:'Select one',req:true,opts:['Option A','Option B','Option C']},
+    {type:'Short Text',label:'District',ph:'Enter district name',req:false,rec:true},
+    {type:'Dropdown',label:'Primary Category',ph:'Select one',req:false,opts:['Option A','Option B','Option C']},
     {type:'Number',label:'Measurement Value',ph:'Enter value',req:false},
     {type:'Photo Upload',label:'Site Photo',req:false},
-    {type:'Location',label:'GPS Location',req:true},
+    {type:'Location',label:'GPS Location',req:false},
   ]};}
   else builder={n:'',d:'',prog:'',cat:'water',mode:'new',fields:[]};
   nav('ad-builder');
