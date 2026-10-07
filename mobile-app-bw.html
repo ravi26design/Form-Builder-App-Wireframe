@@ -2472,7 +2472,7 @@ SCREENS['fu-progdetail']=({name})=>{
   const p=PROGRAMS.find(x=>x.name===name)||myPrograms()[0];
   const c=CAT[p.cat];const fs=formsInProgram(p.name);
   const all=allFormsInProgram(p.name);
-  const subsTotal=all.reduce((n,f)=>n+f.r,0);
+  const subsTotal=fs.reduce((n,f)=>n+subsFor(f.id).length,0);   /* matches the cards below */
   return `
   <div class="phead-wrap">
     <div class="phead"><span class="pback" onclick="nav('fu-programs')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">${p.name}</h1>${statusBadge(p.s)}</div>
@@ -2487,7 +2487,7 @@ SCREENS['fu-progdetail']=({name})=>{
       <div class="muted small mt4 flex ac g6"><i data-lucide="user" style="width:13px;height:13px;flex:0 0 auto"></i>Created by ${p.by}</div>
     </div>
     <div class="progstats mt12">
-      ${[[all.length,'Assigned Forms'],[subsTotal.toLocaleString(),'Total Submissions'],[fs.length,'Active Forms']]
+      ${[[all.length,'Assigned Forms'],[subsTotal,'Total Submissions'],[fs.length,'Active Forms']]
         .map(x=>`<div class="card p"><div class="sv">${x[0]}</div><div class="muted small">${x[1]}</div></div>`).join('')}
     </div>
 
