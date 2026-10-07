@@ -1990,25 +1990,12 @@ SCREENS['fu-sync']=()=>{
   <div class="phead-wrap">
     <div class="phead"><h1 class="ptitle">Offline Sync</h1></div>
   </div>
+  <div class="chiprow"><div class="chips fit">
+    <div class="chip ${onQueue?'sel':''}" onclick="setSyncTab('Waiting')">Waiting to sync${queued.length?' · '+queued.length:''}</div>
+    <div class="chip ${onQueue?'':'sel'}" onclick="setSyncTab('Drafts')">Drafts${drafts.length?' · '+drafts.length:''}</div>
+  </div></div>
   <div class="pad pb">
-    <div class="flex g12">
-      <div class="card p tap grow" style="${onQueue?'border-color:#111;border-width:1.5px':'border-color:#DEDEDE'};background:linear-gradient(135deg,#F2F2F2,#fff)" onclick="setSyncTab('Waiting')">
-        <div style="width:42px;height:42px;border-radius:11px;background:var(--blue-bg);display:grid;place-items:center;color:var(--blue)"><i data-lucide="cloud-upload"></i></div>
-        <div style="font-size:28px;font-weight:800;color:var(--metric);font-family:'DM Sans'" class="mt10">${queued.length}</div>
-        <div class="muted small">records waiting to sync</div>
-      </div>
-      <div class="card p tap grow" style="${onQueue?'border-color:#DEDEDE':'border-color:#111;border-width:1.5px'};background:linear-gradient(135deg,#F2F2F2,#fff)" onclick="setSyncTab('Drafts')">
-        <div style="width:42px;height:42px;border-radius:11px;background:var(--input);border:1px dashed var(--divider);display:grid;place-items:center;color:var(--strong)"><i data-lucide="file-pen"></i></div>
-        <div style="font-size:28px;font-weight:800;color:var(--metric);font-family:'DM Sans'" class="mt10">${drafts.length}</div>
-        <div class="muted small">unfinished drafts</div>
-      </div>
-    </div>
-    <div class="flex between ac mt16"><div class="setrow" style="border:none;padding:0;cursor:default"><span>Auto-sync on Wi-Fi</span></div><div class="tgl ${autoSync?'on':''}" onclick="autoSync=!autoSync;nav('fu-sync');toast(autoSync?'Auto-sync on':'Auto-sync off')"></div></div>
-
-    <div class="chips fit mt16" style="border-top:1px solid var(--border2);padding-top:16px">
-      <div class="chip ${onQueue?'sel':''}" onclick="setSyncTab('Waiting')">Waiting to sync${queued.length?' · '+queued.length:''}</div>
-      <div class="chip ${onQueue?'':'sel'}" onclick="setSyncTab('Drafts')">Drafts${drafts.length?' · '+drafts.length:''}</div>
-    </div>
+    <div class="flex between ac"><div class="setrow" style="border:none;padding:0;cursor:default"><span>Auto-sync on Wi-Fi</span></div><div class="tgl ${autoSync?'on':''}" onclick="autoSync=!autoSync;nav('fu-sync');toast(autoSync?'Auto-sync on':'Auto-sync off')"></div></div>
 
     ${onQueue?`
     ${queued.length?queued.map(r=>`<div class="card p mt12">
