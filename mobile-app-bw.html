@@ -1306,7 +1306,7 @@ function formCard(f,isField){
   const cta=isField
     ? `<div class="flex g8 mt12">
         <button class="btn btn-primary btn-sm grow" onclick="event.stopPropagation();openFill(${f.id})"><i data-lucide="plus"></i> New Submission</button>
-        ${ss.length?`<button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();nav('fu-detail',{id:${f.id}})"><i data-lucide="list"></i> ${ss.length}</button>`:''}
+        <button class="btn btn-ghost btn-sm" style="width:48px;padding:0;color:${starred[f.id]?'var(--heading)':'var(--metric-muted)'}" onclick="event.stopPropagation();toggleStar(${f.id},this)"><i data-lucide="bookmark"${starred[f.id]?' fill="currentColor"':''}></i></button>
       </div>`
     : `<div class="flex g8 mt12">
         <span class="ipill" onclick="event.stopPropagation();nav('ad-preview',{id:${f.id}})"><i data-lucide="eye"></i></span>
@@ -1321,7 +1321,7 @@ function formCard(f,isField){
       <span class="tt grow" style="line-height:1.3">${f.n}</span>
       <span class="flex ac g8" style="flex:0 0 auto">
         ${isField?recBadge(f.id):statusBadge(f.s)}
-        <span onclick="event.stopPropagation();toggleStar(${f.id},this)" style="color:${starred[f.id]?'var(--heading)':'var(--metric-muted)'};display:flex"><i data-lucide="bookmark"${starred[f.id]?' fill="currentColor"':''}></i></span>
+        ${isField?'':`<span onclick="event.stopPropagation();toggleStar(${f.id},this)" style="color:${starred[f.id]?'var(--heading)':'var(--metric-muted)'};display:flex"><i data-lucide="bookmark"${starred[f.id]?' fill="currentColor"':''}></i></span>`}
       </span>
     </div>
     <div class="muted mt8">${f.d}</div>
