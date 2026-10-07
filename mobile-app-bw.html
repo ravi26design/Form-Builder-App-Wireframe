@@ -2492,12 +2492,7 @@ SCREENS['fu-progdetail']=({name})=>{
     </div>
 
     <div class="pgroup" style="margin-top:18px">Forms assigned to you</div>
-    ${fs.map(f=>`<div class="card p tap mt10" onclick="nav('fu-detail',{id:${f.id}})">
-      <div class="flex between g10" style="align-items:flex-start">
-        <div class="grow"><div class="tt" style="font-size:15px;line-height:1.3">${f.n}</div>
-          <div class="muted small mt6">${recSummary(f.id)}</div></div>
-        <span style="flex:0 0 auto">${recBadge(f.id)}</span>
-      </div></div>`).join('')}
+    ${fs.map(f=>formCard(f,true)).join('')}
 
   </div>`;
 };
