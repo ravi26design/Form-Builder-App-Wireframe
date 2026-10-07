@@ -1107,9 +1107,9 @@ SCREENS['fu-notif']=()=>{
   const days=[];list.forEach(n=>{const d=days.find(x=>x.day===n.day);d?d.items.push(n):days.push({day:n.day,items:[n]});});
   return `
   <div class="phead-wrap">
-    <div class="phead"><span class="pback" onclick="nav('${ROLE==='field'?'fu-home':'ad-dash'}')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">Notifications</h1>${unread?`<span class="lnk" onclick="markAllRead()">Mark all read</span>`:''}<span class="ipill" onclick="nav('notif-settings')"><i data-lucide="settings"></i></span></div>
+    <div class="phead"><span class="pback" onclick="nav('${ROLE==='field'?'fu-home':'ad-dash'}')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">Notifications</h1><span class="ipill" onclick="nav('notif-settings')"><i data-lucide="settings"></i></span></div>
   </div>
-  <div class="chiprow"><div class="chips mt12">${['All','Unread'].map(t=>`<div class="chip ${t===notifFilter?'sel':''}" onclick="notifFilter='${t}';nav('fu-notif')">${t}${t==='Unread'&&unread?' · '+unread:''}</div>`).join('')}</div></div>
+  <div class="chiprow"><div class="chips fit">${['All','Unread'].map(t=>`<div class="chip ${t===notifFilter?'sel':''}" onclick="notifFilter='${t}';nav('fu-notif')">${t}${t==='Unread'&&unread?' · '+unread:''}</div>`).join('')}</div></div>
   <div class="pad pb">
     ${list.length?days.map(d=>`<div class="pgroup" style="margin-top:14px">${d.day}</div>${d.items.map(notifCard).join('')}`).join('')
       :emptyState(!notifPrefs.push?'Notifications are off':notifFilter==='Unread'?'Nothing unread':'No notifications',
@@ -1145,7 +1145,6 @@ function notifMenu(id){
     <button class="btn btn-ghost btn-block mt10" onclick="deleteNotif(${n.id})"><i data-lucide="trash-2"></i> Remove</button>`;
   $('#sheetbd').classList.add('show');$('#sheet').classList.add('show');icons();
 }
-function markAllRead(){NOTIFS.forEach(n=>{if((!n.role||n.role===ROLE)&&notifAllowed(n))n.unread=false;});toast('All marked as read','check-circle-2');nav('fu-notif');}
 function markUnread(id){const n=NOTIFS.find(x=>x.id===id);if(n)n.unread=true;closeSheet();toast('Marked as unread','mail');nav('fu-notif');}
 function deleteNotif(id){const i=NOTIFS.findIndex(x=>x.id===id);if(i>-1)NOTIFS.splice(i,1);closeSheet();toast('Notification removed','trash-2');nav('fu-notif');}
 
