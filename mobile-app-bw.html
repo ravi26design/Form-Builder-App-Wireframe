@@ -1417,6 +1417,114 @@ function mySubListHtml(){
       </div>`;}).join('');
 }
 
+/* ================== READING BACK A RECORD ==================
+   A record is shown as the form that produced it: every section, every
+   question, in the order it was asked, with the answer given — or a dash
+   where the field was left empty. Records made before this device captured
+   answers fall back to a representative set so the page is never blank. */
+function answersOf(r){
+  if(r.ans)return r.ans;
+  const seed=r.id||1;
+  const pick=(arr)=>arr[seed%arr.length];
+  const a={
+    name:r.rec,
+    notes:pick(['Catchment in good condition, minor silting near the inlet.',
+                'Vegetation thinning on the eastern slope; grazing pressure visible.',
+                'Site stable since the last visit, no new erosion observed.']),
+    depth:String(28+(seed%26)),
+    email:'rajesh@indiaobs.org',
+    phone:'+91 98450 11223',
+    adate:'2026-03-'+String(10+(seed%18)).padStart(2,'0'),
+    stime:'2026-03-'+String(10+(seed%18)).padStart(2,'0')+'T09:15',
+    veg:String(40+(seed%50)),
+    source:pick(['Borewell','Open Well','River / Stream','Pond / Lake']),
+    bdepth:String(80+(seed%60)),
+    quality:pick(['Clear','Turbid','Coloured']),
+    turb:'Medium',
+    colr:'Light brown after rain',
+    issues:pick([['Seasonal shortage'],['Contamination','Salinity'],['Encroachment'],[]]),
+    csrc:'Runoff from the adjoining field',
+    enc:'Boundary wall extended about four metres into the catchment.',
+    photo:{kind:'photo',name:'site-'+seed+'.jpg',size:284000},
+    doc:{kind:'file',name:'lab-report-'+seed+'.pdf',size:96000},
+    sign:{kind:'sign'},
+    loc:r.gps?{lat:(r.gps.split('°')[0]||'').trim(),lng:(r.gps.split(',')[1]||'').replace(/[^\d.]/g,''),src:'gps',acc:6+(seed%9)}:null,
+    area:'Boundary drawn · 4.2 ha',
+    url:'https://indiaobs.org/sites/'+String(r.rec||'').toLowerCase().replace(/\s+/g,'-'),
+    rating:3+(seed%3),
+  };
+  /* two household members, so a repeatable section reads back as filled */
+  ['1','2'].forEach((n,i)=>{
+    a['mname#'+n]=['Asha Devi','Mahesh Rao'][i];
+    a['mage#'+n]=['41','17'][i];
+    a['mgender#'+n]=['Female','Male'][i];
+    a['mphone#'+n]=['+91 99000 12345',''][i];
+    a['mrel#'+n]=['Head of household','Son'][i];
+  });
+  return a;
+}
+function fmtDate(v){
+  const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(v||''));
+  if(!m)return String(v||'');
+  const M=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return parseInt(m[3],10)+' '+M[parseInt(m[2],10)-1]+' '+m[1];
+}
+function answerText(f,v){
+  if(v===undefined||v===null||v==='')return '';
+  if(Array.isArray(v))return v.length?v.join(', '):'';
+  if(typeof v==='object'){
+    if(v.lat)return v.lat+'° N, '+v.lng+'° E'+(v.acc?' · ±'+v.acc+' m':'');
+    if(v.kind==='sign')return 'Signed';
+    if(v.kind==='photo'||v.kind==='file')return (v.name||'Attached')+(v.size?' · '+fmtSize(v.size):'');
+    return 'Captured';
+  }
+  if(f.type==='Date')return fmtDate(v);
+  if(f.type==='Date & Time'){const[d,t]=String(v).split('T');return fmtDate(d)+(t?' · '+t:'');}
+  if(f.type==='Rating')return v+' / 5';
+  if(f.type==='Percentage')return v+'%';
+  return String(v);
+}
+function answerRow(f,v){
+  const txt=answerText(f,v);
+  const img=(v&&typeof v==='object'&&v.data)?v.data:'';
+  return `<div style="padding:11px 0;border-bottom:1px solid var(--border2)">
+    <div class="muted small">${f.label}</div>
+    ${img?`<img src="${img}" style="max-width:150px;max-height:84px;border:1px solid var(--border);border-radius:10px;margin-top:6px;background:#fff">`
+      :`<div style="font-size:15px;font-weight:${txt?700:400};color:${txt?'var(--heading)':'var(--metric-muted)'};margin-top:4px">${txt||'—'}</div>`}
+  </div>`;
+}
+function renderAnswers(r,form){
+  const a=answersOf(r);
+  const reps=r.reps||{};
+  const get=id=>a[id];
+  const fieldRows=(f,n)=>{
+    const inst=instF(f,n);
+    if(f.rec)inst.label=recLabel(form.id);   /* District, Village Name, Plot ID … */
+    let out=answerRow(inst,get(inst.id));
+    if(f.followups){                      /* a follow-up only shows if it was triggered */
+      const val=get(inst.id);
+      (Array.isArray(val)?val:[val]).forEach(k=>{
+        if(k&&f.followups[k])f.followups[k].forEach(ff=>{out+=fieldRows(ff,n);});
+      });
+    }
+    return out;
+  };
+  return FILL_SECTIONS.map((sec,si)=>{
+    if(sec.repeat){
+      const c=reps[si]||Object.keys(a).filter(k=>k.indexOf('mname#')===0).length||sec.repeat.count;
+      let body='';
+      for(let n=1;n<=c;n++){
+        body+=`<div class="repitem" style="background:#fff;margin-bottom:${n===c?0:12}px">
+          <div class="rephead"><span class="repnum">${n}</span><div class="grow"><div class="tt" style="font-size:14px">${sec.repeat.label} ${n}</div></div></div>
+          ${sec.fields.map(f=>fieldRows(f,n)).join('')}</div>`;
+      }
+      return `<div class="pgroup" style="margin-top:18px">${sec.title}</div>${body}`;
+    }
+    return `<div class="pgroup" style="margin-top:18px">${sec.title}</div>
+      <div class="card p">${sec.fields.map(f=>fieldRows(f,null)).join('')}</div>`;
+  }).join('');
+}
+
 /* ---- FIELD: ONE SUBMISSION ---- */
 SCREENS['fu-subdetail']=({id})=>{
   statusLight(false);
@@ -1441,21 +1549,8 @@ SCREENS['fu-subdetail']=({id})=>{
       ${r.gps?infoRow('GPS',r.gps,'navigation'):''}
     </div>
 
-    ${(r.files&&r.files.length)?`<div class="card p mt14"><div class="sec-title" style="font-size:15px;margin-bottom:8px">Attachments</div>
-      ${r.files.map(x=>`<div class="row">
-        ${x.data?`<img src="${x.data}" class="thumb" alt="">`:`<span class="thumb" style="display:grid;place-items:center"><i data-lucide="file-text" style="width:22px;height:22px;color:var(--muted)"></i></span>`}
-        <div class="grow"><div class="tt" style="font-size:14px">${x.label}</div>
-          <div class="muted small mt4">${x.kind==='sign'?'Signature image':esc(x.name||'')}${x.size?' · '+fmtSize(x.size):''}</div></div></div>`).join('')}</div>`:''}
-
-    ${isDraft
-      ? `<div class="banner pend mt14"><div class="t flex ac g8"><i data-lucide="clock"></i> Draft — not submitted</div><div class="muted mt6">Finish the remaining required fields to submit this record.</div></div>`
-      : `<div class="pgroup" style="margin-top:18px">Submitted answers</div>
-        <div class="card p">${SUBDETAIL.map((sec,si)=>`<div style="${si?'padding-top:14px;margin-top:14px;border-top:1px solid var(--border2)':''}">
-          <div style="font-size:11px;font-weight:800;letter-spacing:.5px;color:var(--muted);text-transform:uppercase">${sec.section}</div>
-          ${sec.rows.map(x=>{const row=x[0]==='Village/Community Name'?[recLabel(f.id),r.rec]:x;
-            return `<div style="padding:11px 0;border-bottom:1px solid var(--border2)"><div class="muted small">${row[0]}</div>
-              <div style="font-size:15px;font-weight:700;color:var(--heading);margin-top:4px">${row[1]}</div></div>`;}).join('')}
-        </div>`).join('')}</div>`}
+    ${isDraft?`<div class="banner pend mt14"><div class="t flex ac g8"><i data-lucide="clock"></i> Draft — not submitted</div><div class="muted mt6">Everything answered so far is kept below.</div></div>`:''}
+    ${renderAnswers(r,f)}
 
     ${isDraft
       ? `<button class="btn btn-primary btn-block mt16" onclick="openFill(${f.id},${r.id})"><i data-lucide="square-pen"></i> Continue filling</button>`
@@ -1511,8 +1606,9 @@ function saveDraft(){
   fill.done=fields.filter(isAnswered).length;fill.total=fields.length;
   const files=attachments();
   const ex=fill.subId?MYSUBS.find(x=>x.id===fill.subId):null;
-  if(ex){ex.rec=fill.rec;ex.at=fill.at;ex.files=files;ex.s='draft';}
-  else{fill.subId=++RECID;MYSUBS.unshift({id:fill.subId,f:fill.formId,rec:fill.rec,at:fill.at,s:'draft',gps:'',files:files});}
+  const snap=Object.assign({},fill.answers),repsSnap=Object.assign({},fill.reps);
+  if(ex){ex.rec=fill.rec;ex.at=fill.at;ex.files=files;ex.s='draft';ex.ans=snap;ex.reps=repsSnap;}
+  else{fill.subId=++RECID;MYSUBS.unshift({id:fill.subId,f:fill.formId,rec:fill.rec,at:fill.at,s:'draft',gps:'',files:files,ans:snap,reps:repsSnap});}
   nav('fu-done');
 }
 function submitFill(){
@@ -1534,8 +1630,10 @@ function submitFill(){
   /* offline-first: a new record is queued on the device, not uploaded yet */
   const geo=activeFillFields().map(f=>fill.answers[f.id]).find(v=>v&&v.lat);
   const gpsTxt=geo?geo.lat+'° N, '+geo.lng+'° E':'';
-  if(ex){ex.rec=fill.rec;ex.at=fill.at;ex.s='queued';ex.gps=gpsTxt||ex.gps;ex.files=files;}
-  else MYSUBS.unshift({id:++RECID,f:fill.formId,rec:fill.rec,at:fill.at,s:'queued',gps:gpsTxt,subId:fill.subIdShown,files:files});
+  const snapshot=Object.assign({},fill.answers);
+  const repsSnap=Object.assign({},fill.reps);
+  if(ex){ex.rec=fill.rec;ex.at=fill.at;ex.s='queued';ex.gps=gpsTxt||ex.gps;ex.files=files;ex.ans=snapshot;ex.reps=repsSnap;}
+  else MYSUBS.unshift({id:++RECID,f:fill.formId,rec:fill.rec,at:fill.at,s:'queued',gps:gpsTxt,subId:fill.subIdShown,files:files,ans:snapshot,reps:repsSnap});
   nav('fu-done');
 }
 /* The form is filled a section at a time. Each step is small enough to finish
