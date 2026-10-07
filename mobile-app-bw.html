@@ -747,7 +747,16 @@ function toast(msg,ic){const t=$('#toast');t.innerHTML=(ic?`<i data-lucide="${ic
 let SCREENS={}; // id -> render fn
 let curScreen='';
 let lastTab='fu-home';   /* where a screen outside the tab bar goes "back" to */
+const openerOf={};
+/* Some screens are reachable from more than one place — Notification Settings
+   from Profile and from the notifications gear, for instance. Back should
+   return to whichever opened it, not to one hard-coded parent. */
+function backFrom(id,fallback){
+  const o=openerOf[id];
+  return (o&&o!==id&&SCREENS[o])?o:fallback;
+}
 function nav(id,opts){
+  if(id!==curScreen&&curScreen)openerOf[id]=curScreen;
   if(TAB_IDS.has(curScreen))lastTab=curScreen;
   curScreen=id;curOpts=opts||{};
   const html=SCREENS[id]?SCREENS[id](opts||{}):'<div class="pad">Not found</div>';
@@ -1155,7 +1164,7 @@ SCREENS['notif-settings']=()=>{
     <div class="tgl ${notifPrefs[k]?'on':''}" onclick="togglePref('${k}')"></div></div>`;
   return `
   <div class="phead-wrap">
-    <div class="phead"><span class="pback" onclick="nav('fu-notif')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">Notification Settings</h1></div>
+    <div class="phead"><span class="pback" onclick="nav('${backFrom('notif-settings','fu-notif')}')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">Notification Settings</h1></div>
   </div>
   <div class="pad pb">
     <div class="card p">${row('push','Push notifications','Turning this off silences everything below.')}</div>
@@ -1533,7 +1542,7 @@ SCREENS['fu-subdetail']=({id})=>{
   const isDraft=r.s==='draft';
   return `
   <div class="phead-wrap">
-    <div class="phead"><span class="pback" onclick="nav('fu-subs')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">${r.rec}</h1></div>
+    <div class="phead"><span class="pback" onclick="nav('${backFrom('fu-subdetail','fu-subs')}'${backFrom('fu-subdetail','fu-subs')==='fu-detail'?`,{id:${r.f}}`:''})"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">${r.rec}</h1></div>
   </div>
   <div class="pad pb">
     <div class="card p">
@@ -2432,8 +2441,6 @@ SCREENS['fu-programs']=()=>{
     <div class="phead"><span class="pback" onclick="nav('${lastTab}')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">My Programmes</h1></div>
   </div>
   <div class="pad pb">
-    <div class="banner ok" style="border-style:dashed"><div class="t flex ac g8"><i data-lucide="eye"></i> View only</div>
-      <div class="muted mt6">Programmes are created and edited on the web portal. Here you can see what you are assigned to.</div></div>
     ${list.map(p=>{
       const c=CAT[p.cat];const fs=formsInProgram(p.name);
       const recs=fs.reduce((n,f)=>n+subsFor(f.id).length,0);
@@ -3028,7 +3035,7 @@ SCREENS['help-tickets']=()=>{
   statusLight(false);
   return `
   <div class="phead-wrap">
-    <div class="phead"><span class="pback" onclick="nav('ad-help')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">My requests</h1></div>
+    <div class="phead"><span class="pback" onclick="nav('${backFrom('help-tickets','ad-help')}')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">My requests</h1></div>
   </div>
   <div class="pad pb">
     ${TICKETS.length?TICKETS.map(t=>`<div class="card p tap mt12" onclick="nav('help-ticket',{id:'${t.id}'})">
