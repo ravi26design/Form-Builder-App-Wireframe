@@ -382,6 +382,10 @@ h1.title{font-size:23px;font-weight:800;color:var(--heading);letter-spacing:-.3p
 .chiprow{padding:14px 16px 0}
 .chiprow .chips{padding-bottom:2px}
 
+/* --- Tabs that divide the width evenly --- */
+.chips.fit{overflow:visible}
+.chips.fit .chip{flex:1 1 0;justify-content:center;padding:0 10px;min-width:0}
+
 /* --- Filter button, sized to sit beside the search field --- */
 .filterbtn{flex:0 0 auto;width:48px;padding:0;position:relative;height:auto;min-height:46px}
 .filterbtn svg{width:19px;height:19px}
@@ -2001,7 +2005,7 @@ SCREENS['fu-sync']=()=>{
     </div>
     <div class="flex between ac mt16"><div class="setrow" style="border:none;padding:0;cursor:default"><span>Auto-sync on Wi-Fi</span></div><div class="tgl ${autoSync?'on':''}" onclick="autoSync=!autoSync;nav('fu-sync');toast(autoSync?'Auto-sync on':'Auto-sync off')"></div></div>
 
-    <div class="chips mt16" style="padding-top:4px;border-top:1px solid var(--border2);padding-top:16px">
+    <div class="chips fit mt16" style="border-top:1px solid var(--border2);padding-top:16px">
       <div class="chip ${onQueue?'sel':''}" onclick="setSyncTab('Waiting')">Waiting to sync${queued.length?' · '+queued.length:''}</div>
       <div class="chip ${onQueue?'':'sel'}" onclick="setSyncTab('Drafts')">Drafts${drafts.length?' · '+drafts.length:''}</div>
     </div>
