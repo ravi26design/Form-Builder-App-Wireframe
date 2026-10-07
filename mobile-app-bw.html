@@ -383,8 +383,9 @@ h1.title{font-size:23px;font-weight:800;color:var(--heading);letter-spacing:-.3p
 .chiprow .chips{padding-bottom:2px}
 
 /* --- The four record counts on a form page: Total = Submitted + Waiting + Draft --- */
-.substats{display:grid;grid-template-columns:1fr 1fr;gap:14px 12px}
-.substats .sv{font-size:26px;font-weight:800;color:var(--metric);font-family:'DM Sans',sans-serif;line-height:1.1}
+.substats{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.substats .card{padding:14px}
+.substats .sv{font-size:26px;font-weight:800;color:var(--metric);font-family:'DM Sans',sans-serif;line-height:1.1;margin-bottom:2px}
 
 /* --- Tabs that divide the width evenly --- */
 .chips.fit{overflow:visible}
@@ -1342,14 +1343,12 @@ SCREENS['fu-detail']=({id})=>{
     <div class="phead"><span class="pback" onclick="nav('fu-forms')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">${f.n}</h1></div>
   </div>
   <div class="pad pb">
-    <div class="card p">
-      <div class="sec-title" style="font-size:15px">Your submissions</div>
-      <div class="substats mt12">
-        ${[[ss.length,'Total'],[ss.filter(x=>x.s==='submitted').length,'Submitted'],[queued,'Waiting to sync'],[drafts,'Draft']]
-          .map(x=>`<div><div class="sv">${x[0]}</div><div class="muted small">${x[1]}</div></div>`).join('')}
-      </div>
-      <button class="btn btn-primary btn-block mt14" onclick="openFill(${f.id})"><i data-lucide="plus"></i> New Submission</button>
+    <div class="sec-title" style="font-size:15px">Your submissions</div>
+    <div class="substats mt12">
+      ${[[ss.length,'Total'],[ss.filter(x=>x.s==='submitted').length,'Submitted'],[queued,'Waiting to sync'],[drafts,'Draft']]
+        .map(x=>`<div class="card p"><div class="sv">${x[0]}</div><div class="muted small">${x[1]}</div></div>`).join('')}
     </div>
+    <button class="btn btn-primary btn-block mt14" onclick="openFill(${f.id})"><i data-lucide="plus"></i> New Submission</button>
 
     ${ss.length?renderRecordGroups(f.id)
       :`<div class="card p mt14"><div class="muted small">Nothing recorded yet. Each time you submit this form it is saved as a separate record, titled by the ${recLabel(f.id).toLowerCase()} you enter — so the same form covers every ${recOne(f.id)}.</div></div>`}
@@ -1362,49 +1361,27 @@ SCREENS['fu-detail']=({id})=>{
     </div>
   </div>`;
 };
-/* One row per place, never one per visit: a location that has been recorded
-   several times stays a single entry and opens to reveal its own history.
-   A location with a single record skips the fold and opens that record. */
+/* One row per record, newest first — every visit is listed in its own right,
+   so three records read as three rows even when two share a location. */
 function renderRecordGroups(id){
   const list=subsFor(id);
-  const groups=groupSubs(id?list:list);
+  const places=new Set(list.map(r=>r.rec)).size;
   return `<div class="flex between ac" style="margin:20px 2px 10px"><div class="sec-title" style="font-size:15px">Records</div>
-      <span class="muted small">${list.length} · ${groups.length} ${groups.length===1?recOne(id):recMany(id)}</span></div>`
-   + groups.map((g,k)=>{
-      const many=g.items.length>1;
-      const latest=g.items[0];
-      const open=many?`toggleRecGroup(${k})`:`nav('fu-subdetail',{id:${latest.id}})`;
-      return `<div class="card mt10" style="padding:2px 16px">
-        <div class="row" onclick="${open}" style="cursor:pointer">
-          <span class="catsq" style="width:40px;height:40px;background:var(--blue-bg);color:var(--blue)"><i data-lucide="map-pin"></i></span>
-          <div class="grow">
-            <div class="tt" style="font-size:15px">${g.rec}</div>
-            <div class="muted small mt4">${many?`${g.items.length} records · ${latest.at.split(' · ')[0]}`:latest.at}</div>
-          </div>
-          ${statusBadge(latest.s)}
-          <span class="chev" id="rc${k}" style="transition:transform .15s"><i data-lucide="chevron-right"></i></span>
+      <span class="muted small">${list.length} · ${places} ${places===1?recOne(id):recMany(id)}</span></div>`
+   + list.map(r=>`<div class="card p tap mt10" onclick="nav('fu-subdetail',{id:${r.id}})">
+      <div class="flex between g10" style="align-items:flex-start">
+        <div class="grow">
+          <div class="tt" style="font-size:15px">${r.rec}</div>
+          <div class="muted small mt4">${r.at}</div>
         </div>
-        ${many?`<div id="rg${k}" style="display:none;border-top:1px solid var(--border2)">
-          ${g.items.map(r=>`<div class="row" onclick="nav('fu-subdetail',{id:${r.id}})" style="cursor:pointer;padding-left:6px">
-            <span style="color:var(--metric-muted);display:flex"><i data-lucide="corner-down-right" style="width:15px;height:15px"></i></span>
-            <div class="grow"><div class="tt" style="font-size:14px">${r.at}</div><div class="muted small mt4">${r.s==='draft'?'Not submitted yet':r.s==='queued'?'Saved on this device':'Uploaded'}</div></div>
-            ${statusBadge(r.s)}</div>`).join('')}
-        </div>`:''}
-      </div>`;}).join('');
-}
-/* toggles in place so the page keeps its scroll position */
-function toggleRecGroup(k){
-  const el=document.getElementById('rg'+k);if(!el)return;
-  const ch=document.getElementById('rc'+k);
-  const open=el.style.display!=='none';
-  el.style.display=open?'none':'block';
-  if(ch)ch.style.transform=open?'':'rotate(90deg)';
+        <span class="flex ac g8" style="flex:0 0 auto">${recStateBadge(r)}<span class="chev"><i data-lucide="chevron-right"></i></span></span>
+      </div></div>`).join('');
 }
 
-/* ================== FIELD: MY SUBMISSIONS ==================
+/* ================== FIELD: MY RECORDS ==================
    Every record this user has produced, newest first, across all forms. It is
    their own work only — no other field user's records reach this list. */
-let mySubFilter='All';let mySubQ='';
+let mySubQ='';
 SCREENS['fu-subs']=()=>{
   statusLight(false);
   return `
@@ -1436,21 +1413,15 @@ function mySubListHtml(){
     q?'Try a submission ID, a form name or a location.':'Records you submit appear here.','inbox');
   return `<div class="muted small" style="margin:10px 2px 0">${list.length} record${list.length===1?'':'s'}${q?' found':''}</div>`
    + list.map(r=>{
-      const f=FORMS.find(x=>x.id===r.f)||{n:'Form',prog:'',cat:'water'};
-      const c=CAT[f.cat];
+      const f=FORMS.find(x=>x.id===r.f)||{n:'Form',prog:''};
       return `<div class="card p mt12">
         <div class="flex between ac g8">
           <span class="small" style="font-family:'DM Sans',sans-serif;letter-spacing:.4px;color:var(--muted);font-weight:700">${r.subId||'—'}</span>
           ${recStateBadge(r)}</div>
-        <div class="flex g12 mt10" style="align-items:flex-start">
-          <span class="catsq" style="background:${c.bg};color:${c.c}"><i data-lucide="${c.ic}"></i></span>
-          <div class="grow">
-            <div class="tt" style="font-size:15px;line-height:1.3">${f.n}</div>
-            <div class="muted small mt6 flex ac g6"><i data-lucide="tag" style="width:13px;height:13px;flex:0 0 auto"></i>${f.prog}</div>
-            <div class="muted small mt4 flex ac g6"><i data-lucide="map-pin" style="width:13px;height:13px;flex:0 0 auto"></i>${r.rec}</div>
-            <div class="muted small mt4 flex ac g6"><i data-lucide="clock" style="width:13px;height:13px;flex:0 0 auto"></i>${r.at}</div>
-          </div>
-        </div>
+        <div class="tt mt10" style="font-size:15px;line-height:1.3">${f.n}</div>
+        <div class="muted small mt6 flex ac g6"><i data-lucide="tag" style="width:13px;height:13px;flex:0 0 auto"></i>${f.prog}</div>
+        <div class="muted small mt4 flex ac g6"><i data-lucide="map-pin" style="width:13px;height:13px;flex:0 0 auto"></i>${r.rec}</div>
+        <div class="muted small mt4 flex ac g6"><i data-lucide="clock" style="width:13px;height:13px;flex:0 0 auto"></i>${r.at}</div>
         <button class="btn btn-ghost btn-sm btn-block mt12" onclick="nav('fu-subdetail',{id:${r.id}})"><i data-lucide="eye"></i> View Details</button>
       </div>`;}).join('');
 }
