@@ -1332,7 +1332,6 @@ SCREENS['fu-detail']=({id})=>{
   const f=FORMS.find(x=>x.id===id)||FORMS[0];const c=CAT[f.cat];
   const ss=subsFor(f.id);
   const drafts=ss.filter(x=>x.s==='draft').length;
-  const places=new Set(ss.map(x=>x.rec)).size;
   return `
   <div class="phead-wrap">
     <div class="phead"><span class="pback" onclick="nav('fu-forms')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">${f.n}</h1></div>
@@ -1341,9 +1340,9 @@ SCREENS['fu-detail']=({id})=>{
     <div class="card p">
       <div class="sec-title" style="font-size:15px">Your submissions</div>
       <div class="flex g12 mt12">
-        <div class="grow"><div style="font-size:26px;font-weight:800;color:var(--metric);font-family:'DM Sans'">${ss.length}</div><div class="muted small">records</div></div>
-        <div class="grow"><div style="font-size:26px;font-weight:800;color:var(--metric);font-family:'DM Sans'">${places}</div><div class="muted small">${recMany(f.id)} covered</div></div>
-        <div class="grow"><div style="font-size:26px;font-weight:800;color:var(--metric);font-family:'DM Sans'">${drafts}</div><div class="muted small">draft${drafts===1?'':'s'}</div></div>
+        <div class="grow"><div style="font-size:26px;font-weight:800;color:var(--metric);font-family:'DM Sans'">${ss.length}</div><div class="muted small">Total</div></div>
+        <div class="grow"><div style="font-size:26px;font-weight:800;color:var(--metric);font-family:'DM Sans'">${ss.length-drafts}</div><div class="muted small">Submitted</div></div>
+        <div class="grow"><div style="font-size:26px;font-weight:800;color:var(--metric);font-family:'DM Sans'">${drafts}</div><div class="muted small">Draft</div></div>
       </div>
       <button class="btn btn-primary btn-block mt14" onclick="openFill(${f.id})"><i data-lucide="plus"></i> New Submission</button>
     </div>
