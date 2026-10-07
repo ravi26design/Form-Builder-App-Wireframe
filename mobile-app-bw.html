@@ -1422,17 +1422,16 @@ SCREENS['fu-subdetail']=({id})=>{
   statusLight(false);
   const r=MYSUBS.find(x=>x.id===id)||MYSUBS[0];
   const f=FORMS.find(x=>x.id===r.f)||FORMS[0];
-  const same=subsFor(r.f).filter(x=>x.rec===r.rec);
   const isDraft=r.s==='draft';
-  const uploaded=r.s==='submitted';
-  const stage=['pending','verified','completed'];
-  const at=uploaded?stage.indexOf(r.rs||'pending'):-1;
   return `
   <div class="phead-wrap">
-    <div class="phead"><span class="pback" onclick="nav('fu-subs')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">${r.rec}</h1>${recStateBadge(r)}<span class="ipill" onclick="toast('Shared','share-2')"><i data-lucide="share-2"></i></span></div>
+    <div class="phead"><span class="pback" onclick="nav('fu-subs')"><i data-lucide="arrow-left"></i></span><h1 class="ptitle">${r.rec}</h1><span class="ipill" onclick="toast('Shared','share-2')"><i data-lucide="share-2"></i></span></div>
   </div>
   <div class="pad pb">
     <div class="card p">
+      <div class="flex between ac" style="padding:11px 0;border-bottom:1px solid var(--border2)">
+        <span class="muted flex ac g6"><i data-lucide="activity" style="width:15px;height:15px"></i> Status</span>
+        ${recStateBadge(r)}</div>
       ${r.subId?infoRow('Submission ID',r.subId,'hash'):''}
       ${infoRow('Programme',f.prog,'tag')}
       ${infoRow('Form',f.n,'file-text')}
@@ -1441,14 +1440,6 @@ SCREENS['fu-subdetail']=({id})=>{
       ${infoRow('Recorded by','Rajesh Kumar','user')}
       ${r.gps?infoRow('GPS',r.gps,'navigation'):''}
     </div>
-
-    ${uploaded?`<div class="card p mt14">
-      <div class="sec-title" style="font-size:15px;margin-bottom:10px">Review status</div>
-      <div class="flex g8">${stage.map((st,i)=>`<div class="grow" style="text-align:center">
-        <div style="height:5px;border-radius:3px;background:${i<=at?'#111':'#E4E4E4'}"></div>
-        <div class="small mt6" style="font-weight:${i===at?800:600};color:${i<=at?'var(--heading)':'var(--metric-muted)'}">${st[0].toUpperCase()+st.slice(1)}</div></div>`).join('')}</div>
-      <div class="hint flex ac g6" style="margin-top:12px"><i data-lucide="lock" style="width:13px;height:13px"></i> Status is set by an Org Admin on the web portal.</div>
-    </div>`:''}
 
     ${(r.files&&r.files.length)?`<div class="card p mt14"><div class="sec-title" style="font-size:15px;margin-bottom:8px">Attachments</div>
       ${r.files.map(x=>`<div class="row">
@@ -1466,18 +1457,11 @@ SCREENS['fu-subdetail']=({id})=>{
               <div style="font-size:15px;font-weight:700;color:var(--heading);margin-top:4px">${row[1]}</div></div>`;}).join('')}
         </div>`).join('')}</div>`}
 
-    ${same.length>1?`<div class="banner ok mt14"><div class="t flex ac g8"><i data-lucide="history"></i> ${same.length} records for ${r.rec}</div>
-      <div class="muted mt6">This ${recOne(f.id)} has been recorded ${same.length} times. Each visit is kept as its own record.</div></div>`:''}
-
-    <div class="mt16">
-      ${isDraft
-        ? `<button class="btn btn-primary btn-block" onclick="openFill(${f.id},${r.id})"><i data-lucide="square-pen"></i> Continue filling</button>`
-        : r.s==='queued'
-          ? `<button class="btn btn-outline btn-block" onclick="openFill(${f.id},${r.id})"><i data-lucide="square-pen"></i> Edit before it syncs</button>`
-          : `<div class="card p" style="text-align:center"><div class="muted small" style="line-height:1.6">This record has been uploaded and is under review.<br>To correct it, ask an Org Admin on the web portal.</div>
-             <button class="btn btn-ghost btn-sm btn-block mt10" onclick="nav('help-contact')"><i data-lucide="headphones"></i> Contact Support</button></div>`}
-      <button class="btn btn-ghost btn-block mt10" onclick="duplicateRecord(${r.id})"><i data-lucide="copy"></i> Use as a start for another ${recOne(f.id)}</button>
-    </div>
+    ${isDraft
+      ? `<button class="btn btn-primary btn-block mt16" onclick="openFill(${f.id},${r.id})"><i data-lucide="square-pen"></i> Continue filling</button>`
+      : r.s==='queued'
+        ? `<button class="btn btn-outline btn-block mt16" onclick="openFill(${f.id},${r.id})"><i data-lucide="square-pen"></i> Edit before it syncs</button>`
+        : ''}
   </div>`;
 };
 /* Copies the answers but clears the record title, so the next ${recOne} has
