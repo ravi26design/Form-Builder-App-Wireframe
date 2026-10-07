@@ -1304,9 +1304,12 @@ function filterForms(q){
 function formCard(f,isField){
   const c=CAT[f.cat];
   const ss=isField?subsFor(f.id):[];
+  const paused=isField&&isPaused(f.id);
   const cta=isField
     ? `<div class="flex g8 mt12">
-        <button class="btn btn-primary btn-sm grow" onclick="event.stopPropagation();openFill(${f.id})"><i data-lucide="plus"></i> New Submission</button>
+        ${paused
+          ? `<button class="btn btn-ghost btn-sm grow" disabled><i data-lucide="pause"></i> Programme paused</button>`
+          : `<button class="btn btn-primary btn-sm grow" onclick="event.stopPropagation();openFill(${f.id})"><i data-lucide="plus"></i> New Submission</button>`}
         <button class="btn btn-ghost btn-sm" style="width:48px;padding:0;color:${starred[f.id]?'var(--heading)':'var(--metric-muted)'}" onclick="event.stopPropagation();toggleStar(${f.id},this)"><i data-lucide="bookmark"${starred[f.id]?' fill="currentColor"':''}></i></button>
       </div>`
     : `<div class="flex g8 mt12">
@@ -1353,7 +1356,10 @@ SCREENS['fu-detail']=({id})=>{
       ${[[ss.length,'Total'],[ss.filter(x=>x.s==='submitted').length,'Submitted'],[queued,'Waiting to sync'],[drafts,'Draft']]
         .map(x=>`<div class="card p"><div class="sv">${x[0]}</div><div class="muted small">${x[1]}</div></div>`).join('')}
     </div>
-    <button class="btn btn-primary btn-block mt14" onclick="openFill(${f.id})"><i data-lucide="plus"></i> New Submission</button>
+    ${isPaused(f.id)
+      ? `<div class="banner pend mt14"><div class="t flex ac g8"><i data-lucide="pause"></i> ${f.prog} is paused</div>
+          <div class="muted mt6">No new records can be started while the programme is on hold. Anything already saved stays safe and will still sync.</div></div>`
+      : `<button class="btn btn-primary btn-block mt14" onclick="openFill(${f.id})"><i data-lucide="plus"></i> New Submission</button>`}
 
     ${ss.length?renderRecordGroups(f.id)
       :`<div class="card p mt14"><div class="muted small">Nothing recorded yet. Each time you submit this form it is saved as a separate record, titled by the ${recLabel(f.id).toLowerCase()} you enter — so the same form covers every ${recOne(f.id)}.</div></div>`}
@@ -1566,11 +1572,14 @@ SCREENS['fu-subdetail']=({id})=>{
     ${isDraft?`<div class="banner pend mt14"><div class="t flex ac g8"><i data-lucide="clock"></i> Draft — not submitted</div><div class="muted mt6">Everything answered so far is kept below.</div></div>`:''}
     ${renderAnswers(r,f)}
 
-    ${isDraft
-      ? `<button class="btn btn-primary btn-block mt16" onclick="openFill(${f.id},${r.id})"><i data-lucide="square-pen"></i> Continue filling</button>`
-      : r.s==='queued'
-        ? `<button class="btn btn-outline btn-block mt16" onclick="openFill(${f.id},${r.id})"><i data-lucide="square-pen"></i> Edit before it syncs</button>`
-        : ''}
+    ${isPaused(f.id)
+      ? `<div class="banner pend mt16"><div class="t flex ac g8"><i data-lucide="pause"></i> ${f.prog} is paused</div>
+          <div class="muted mt6">This record cannot be edited until the programme resumes.</div></div>`
+      : isDraft
+        ? `<button class="btn btn-primary btn-block mt16" onclick="openFill(${f.id},${r.id})"><i data-lucide="square-pen"></i> Continue filling</button>`
+        : r.s==='queued'
+          ? `<button class="btn btn-outline btn-block mt16" onclick="openFill(${f.id},${r.id})"><i data-lucide="square-pen"></i> Edit before it syncs</button>`
+          : ''}
   </div>`;
 };
 /* Copies the answers but clears the record title, so the next ${recOne} has
@@ -1592,6 +1601,7 @@ function infoRow(l,v,ic){return `<div class="flex between ac" style="padding:11p
 function openFill(id,subId){
   const form=FORMS.find(x=>x.id===id);
   if(form&&form.s!=='active'){toast('This form is not published yet','lock');return;}
+  if(isPaused(id)){toast('This programme is paused','pause');return;}
   const existing=subId?MYSUBS.find(x=>x.id===subId):null;
   fill={i:0,step:0,answers:{},formId:id,subId:subId||null,geo:{},geoErr:{},showErr:false,reps:{}};
   FILL_SECTIONS.forEach(function(sec,si){if(sec.repeat)fill.reps[si]=sec.repeat.count;});
@@ -2066,8 +2076,8 @@ SCREENS['fu-sync']=()=>{
       <div class="flex between g8" style="align-items:flex-start"><div class="grow">
         <div class="tt" style="font-size:14px">${r.rec}</div>
         <div class="muted small mt4">${nameOf(r)} · edited ${r.at}</div></div>${statusBadge('draft')}</div>
-      <div class="hint mt8">Drafts can't sync until they're submitted.</div>
-      <button class="btn btn-ghost btn-sm btn-block mt10" onclick="openFill(${r.f},${r.id})"><i data-lucide="square-pen"></i> Continue filling</button></div>`).join('')
+      <div class="hint mt8">${isPaused(r.f)?'The programme is paused, so this draft is on hold.':"Drafts can't sync until they're submitted."}</div>
+      ${isPaused(r.f)?'':`<button class="btn btn-ghost btn-sm btn-block mt10" onclick="openFill(${r.f},${r.id})"><i data-lucide="square-pen"></i> Continue filling</button>`}</div>`).join('')
     :emptyState('No drafts','Records you start but do not submit wait here.','file-pen')}
     `}
   </div>`;
@@ -2438,6 +2448,10 @@ function myPrograms(){
   return PROGRAMS.filter(p=>FORMS.some(f=>f.prog===p.name&&f.s==='active'));
 }
 function formsInProgram(name){return FORMS.filter(f=>f.prog===name&&f.s==='active');}
+/* A paused programme collects nothing: its forms stay visible and readable,
+   but no record can be started or continued until it resumes. */
+function programOf(fid){const f=FORMS.find(x=>x.id===fid);return f?PROGRAMS.find(p=>p.name===f.prog):null;}
+function isPaused(fid){const p=programOf(fid);return !!(p&&p.s==='paused');}
 function allFormsInProgram(name){return FORMS.filter(f=>f.prog===name);}
 SCREENS['fu-programs']=()=>{
   statusLight(false);
