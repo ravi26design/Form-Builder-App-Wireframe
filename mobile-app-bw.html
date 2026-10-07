@@ -1999,7 +1999,7 @@ SCREENS['fu-sync']=()=>{
 
     ${onQueue?`
     ${queued.length?queued.map(r=>`<div class="card p mt12">
-      <div class="flex between ac"><div class="grow">
+      <div class="flex between g8" style="align-items:flex-start"><div class="grow">
         <div class="tt" style="font-size:14px">${r.rec}</div>
         <div class="muted small mt4">${nameOf(r)} · ${r.at}</div></div>${statusBadge('queued')}</div>
       <button class="btn btn-outline btn-sm btn-block mt12" onclick="syncOne(${r.id})"><i data-lucide="cloud-upload"></i> Sync now</button></div>`).join('')
@@ -2007,7 +2007,7 @@ SCREENS['fu-sync']=()=>{
     ${queued.length?`<button class="btn btn-green btn-block mt16" onclick="syncAll()"><i data-lucide="cloud-upload"></i> Sync All (${queued.length})</button>`:''}
     `:`
     ${drafts.length?drafts.map(r=>`<div class="card p mt12">
-      <div class="flex between ac"><div class="grow">
+      <div class="flex between g8" style="align-items:flex-start"><div class="grow">
         <div class="tt" style="font-size:14px">${r.rec}</div>
         <div class="muted small mt4">${nameOf(r)} · edited ${r.at}</div></div>${statusBadge('draft')}</div>
       <div class="hint mt8">Drafts can't sync until they're submitted.</div>
